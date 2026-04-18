@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "Tutor not configured" },
         { status: 503 },
@@ -125,26 +125,28 @@ export async function POST(request: Request) {
       profile,
     );
 
-    // Call Anthropic Messages API with streaming
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call OpenAI Chat Completions API with streaming
+    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6-20250514",
+        model: "gpt-4o-mini",
         max_tokens: 2000,
         stream: true,
-        system: systemPrompt,
-        messages: [...history, { role: "user", content: message }],
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...history,
+          { role: "user", content: message },
+        ],
       }),
     });
 
     if (!resp.ok) {
       const errBody = await resp.text();
-      console.error("Anthropic API error:", resp.status, errBody);
+      console.error("OpenAI API error:", resp.status, errBody);
       return NextResponse.json(
         { error: "Tutor unavailable" },
         { status: 502 },
@@ -183,11 +185,8 @@ export async function POST(request: Request) {
 
               try {
                 const event = JSON.parse(data);
-                if (
-                  event.type === "content_block_delta" &&
-                  event.delta?.type === "text_delta"
-                ) {
-                  const text = event.delta.text;
+                const text = event.choices?.[0]?.delta?.content;
+                if (text) {
                   fullResponse += text;
                   controller.enqueue(encoder.encode(text));
                 }

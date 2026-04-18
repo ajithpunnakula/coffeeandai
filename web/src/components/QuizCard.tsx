@@ -73,17 +73,17 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
     const passed = score >= pass_threshold;
     return (
       <div className="space-y-4 text-center">
-        <h2 className="text-xl font-bold">{card.title}</h2>
-        <p className="text-lg">
-          Score: {correctCount} / {questions.length}
+        <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
+        <p className="text-3xl font-bold">
+          {correctCount} / {questions.length}
         </p>
-        <p className={passed ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+        <p className={passed ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"}>
           {passed ? "Passed!" : `Need ${Math.round(pass_threshold * 100)}% to pass. Try again.`}
         </p>
         {!passed && (
           <button
             onClick={handleRetry}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-400 hover:to-orange-500 transition-all"
           >
             Retry
           </button>
@@ -95,22 +95,25 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">{card.title}</h2>
-        <span className="text-sm text-gray-500 dark:text-gray-400">
+        <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
+        <span className="text-sm text-gray-500 bg-gray-800 rounded-full px-2.5 py-0.5">
           {currentQ + 1} / {questions.length}
         </span>
       </div>
 
-      <p className="font-medium">{question.prompt}</p>
+      <p className="font-medium text-gray-200">{question.prompt}</p>
 
       <div className="space-y-2">
         {question.choices.map((choice, idx) => {
-          let style = "border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800";
+          let style =
+            "border-gray-700 hover:border-gray-600 hover:bg-gray-800/50 text-gray-300";
           if (selected !== null) {
             if (choice.correct) {
-              style = "border-green-500 bg-green-50 dark:bg-green-950";
+              style = "border-emerald-500/50 bg-emerald-500/10 text-emerald-300";
             } else if (idx === selected) {
-              style = "border-red-500 bg-red-50 dark:bg-red-950";
+              style = "border-red-500/50 bg-red-500/10 text-red-300";
+            } else {
+              style = "border-gray-800 text-gray-500";
             }
           }
           return (
@@ -118,7 +121,7 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
               key={idx}
               onClick={() => handleSelect(idx)}
               disabled={selected !== null}
-              className={`w-full text-left px-4 py-2 rounded border ${style} disabled:cursor-default`}
+              className={`w-full text-left px-4 py-3 rounded-xl border ${style} disabled:cursor-default transition-colors text-sm`}
             >
               {choice.text}
             </button>
@@ -127,7 +130,7 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
       </div>
 
       {selected !== null && !isCorrect && question.choices[selected]?.misconception && (
-        <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 p-2 rounded">
+        <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
           {question.choices[selected].misconception}
         </p>
       )}
@@ -135,7 +138,7 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
       {selected !== null && (
         <button
           onClick={handleNext}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-400 hover:to-orange-500 transition-all text-sm font-medium"
         >
           {currentQ + 1 < questions.length ? "Next Question" : "See Results"}
         </button>
