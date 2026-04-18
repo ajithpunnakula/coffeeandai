@@ -5,6 +5,7 @@ import Link from "next/link";
 import CardList from "./CardList";
 import CardEditor from "./CardEditor";
 import MetadataPanel from "./MetadataPanel";
+import AIChatPanel from "./AIChatPanel";
 
 interface Card {
   id: string;
@@ -49,6 +50,7 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [preview, setPreview] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyCards = useRef<Set<string>>(new Set());
   const dirtyCourse = useRef(false);
@@ -265,7 +267,7 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
         </div>
 
         {/* Main Editor / Preview */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={`flex-1 overflow-y-auto ${aiPanelOpen ? "mr-96" : ""}`}>
           {showMetadata ? (
             <MetadataPanel course={course} onChange={handleCourseChange} />
           ) : (
@@ -277,6 +279,14 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
           )}
         </div>
       </div>
+
+      {/* AI Chat Panel */}
+      <AIChatPanel
+        courseSlug={course.slug}
+        currentCard={selectedCard}
+        open={aiPanelOpen}
+        onToggle={() => setAiPanelOpen(!aiPanelOpen)}
+      />
     </div>
   );
 }
