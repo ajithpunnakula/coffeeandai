@@ -14,7 +14,9 @@ export interface Section {
  * Each section becomes a micro-slide in the PageCard player.
  */
 export function splitSections(bodyMd: string, cardTitle: string): Section[] {
-  const lines = bodyMd.split("\n");
+  // Strip [[wikilinks]] → plain text
+  const cleaned = bodyMd.replace(/\[\[([^\]]+)\]\]/g, "$1");
+  const lines = cleaned.split("\n");
   const rawSections: { heading: string | null; lines: string[] }[] = [];
 
   let currentHeading: string | null = null;
