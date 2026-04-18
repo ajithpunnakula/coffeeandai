@@ -53,8 +53,8 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
       setSelected(null);
     } else {
       setFinished(true);
-      const finalCorrect = correctCount + (selected === correctIndex ? 1 : 0);
-      const score = finalCorrect / questions.length;
+      // correctCount already includes the last answer (incremented by handleSelect)
+      const score = correctCount / questions.length;
       onComplete(score);
     }
   }
