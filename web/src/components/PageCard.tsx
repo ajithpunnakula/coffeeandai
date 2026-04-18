@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { splitSections } from "@/lib/split-sections";
+import SectionRenderer from "./sections/SectionRenderer";
 
 interface PageCardProps {
   card: {
@@ -15,38 +15,59 @@ interface PageCardProps {
     audio_url?: string;
     image_url?: string;
   };
+  onSlideChange?: (slideIndex: number, totalSlides: number) => void;
 }
 
-function extractTldr(markdown: string): { tldr: string; hasMore: boolean } {
-  const lines = markdown.split("\n");
-  const contentLines: string[] = [];
-  let charCount = 0;
-  const limit = 400;
+export default function PageCard({ card, onSlideChange }: PageCardProps) {
+  const sections = splitSections(card.body_md, card.title);
+  const totalSlides = sections.length;
+  const isSingleSlide = totalSlides <= 1;
 
-  for (const line of lines) {
-    if (charCount > limit && contentLines.length > 0) break;
-    // Skip headings for TLDR
-    if (line.startsWith("#")) continue;
-    // Skip code blocks for TLDR
-    if (line.startsWith("```")) break;
-    if (line.trim()) {
-      contentLines.push(line);
-      charCount += line.length;
-    }
-    if (charCount > limit) break;
-  }
-
-  const tldr = contentLines.join("\n");
-  const hasMore = markdown.length > tldr.length + 50;
-  return { tldr, hasMore };
-}
-
-export default function PageCard({ card }: PageCardProps) {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [direction, setDirection] = useState(0); // -1 = back, 1 = forward
   const [playing, setPlaying] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const { tldr, hasMore } = extractTldr(card.body_md);
+  // Reset slide index when card changes
+  useEffect(() => {
+    setSlideIndex(0);
+    setDirection(0);
+  }, [card.id]);
+
+  // Notify parent of slide changes
+  useEffect(() => {
+    onSlideChange?.(slideIndex, totalSlides);
+  }, [slideIndex, totalSlides, onSlideChange]);
+
+  const goForward = useCallback(() => {
+    if (slideIndex < totalSlides - 1) {
+      setDirection(1);
+      setSlideIndex((i) => i + 1);
+    }
+  }, [slideIndex, totalSlides]);
+
+  const goBack = useCallback(() => {
+    if (slideIndex > 0) {
+      setDirection(-1);
+      setSlideIndex((i) => i - 1);
+    }
+  }, [slideIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        goForward();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goBack();
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [goForward, goBack]);
 
   function toggleAudio() {
     if (!audioRef.current) return;
@@ -58,9 +79,40 @@ export default function PageCard({ card }: PageCardProps) {
     setPlaying(!playing);
   }
 
+  // Tap zones: left 40% goes back, right 60% goes forward
+  function handleTap(e: React.MouseEvent) {
+    if (isSingleSlide) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const pct = x / rect.width;
+    if (pct < 0.4) {
+      goBack();
+    } else {
+      goForward();
+    }
+  }
+
+  const section = sections[slideIndex];
+
+  const variants = {
+    enter: (dir: number) => ({
+      opacity: 0,
+      x: dir >= 0 ? 60 : -60,
+    }),
+    center: {
+      opacity: 1,
+      x: 0,
+    },
+    exit: (dir: number) => ({
+      opacity: 0,
+      x: dir >= 0 ? -60 : 60,
+    }),
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Header — persistent across slides */}
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
         <span className="shrink-0 rounded-full bg-amber-500/10 text-amber-400 px-2.5 py-0.5 text-xs font-medium">
@@ -99,8 +151,8 @@ export default function PageCard({ card }: PageCardProps) {
         </>
       )}
 
-      {/* Image */}
-      {card.image_url && (
+      {/* Image — first slide only */}
+      {card.image_url && slideIndex === 0 && (
         <img
           src={card.image_url}
           alt={card.title}
@@ -108,35 +160,48 @@ export default function PageCard({ card }: PageCardProps) {
         />
       )}
 
-      {/* Content - TLDR or Full */}
-      <div className="prose prose-sm prose-invert max-w-none prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:text-amber-300 prose-headings:text-gray-100 prose-a:text-amber-400">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-          {expanded ? card.body_md : tldr}
-        </ReactMarkdown>
+      {/* Slide content with tap zones */}
+      <div
+        ref={containerRef}
+        onClick={handleTap}
+        className={`relative overflow-hidden ${!isSingleSlide ? "cursor-pointer" : ""}`}
+        style={{ minHeight: 200 }}
+      >
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={`${card.id}-${slideIndex}`}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <SectionRenderer section={section} />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Expand / Collapse */}
-      {hasMore && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors"
-        >
-          {expanded ? (
-            <>
-              Show less
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-              </svg>
-            </>
-          ) : (
-            <>
-              Read full content
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </>
-          )}
-        </button>
+      {/* Dot navigation */}
+      {!isSingleSlide && (
+        <div className="flex items-center justify-center gap-1.5 pt-2">
+          {sections.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDirection(i > slideIndex ? 1 : -1);
+                setSlideIndex(i);
+              }}
+              className={`rounded-full transition-all duration-200 ${
+                i === slideIndex
+                  ? "w-6 h-2 bg-amber-400"
+                  : "w-2 h-2 bg-gray-600 hover:bg-gray-500"
+              }`}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
