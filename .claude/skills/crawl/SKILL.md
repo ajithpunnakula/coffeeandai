@@ -1,7 +1,7 @@
 ---
 name: crawl
 description: Recursively crawl a documentation site, converting each page to markdown
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Bash, Glob, Grep
 ---
 

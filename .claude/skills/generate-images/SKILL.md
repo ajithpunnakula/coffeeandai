@@ -1,7 +1,7 @@
 ---
 name: generate-images
 description: Generate AI illustrations for course cards and upload to Vercel Blob
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

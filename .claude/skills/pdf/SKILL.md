@@ -1,7 +1,7 @@
 ---
 name: pdf
 description: Convert PDF files to markdown
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Bash
 ---
 

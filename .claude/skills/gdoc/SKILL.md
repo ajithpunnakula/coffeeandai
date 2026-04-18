@@ -1,7 +1,7 @@
 ---
 name: gdoc
 description: Fetch Google Docs and convert to markdown
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Bash
 ---
 

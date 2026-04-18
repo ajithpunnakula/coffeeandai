@@ -1,7 +1,7 @@
 ---
 name: video
 description: Transcribe video/audio files to markdown
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Bash
 ---
 
