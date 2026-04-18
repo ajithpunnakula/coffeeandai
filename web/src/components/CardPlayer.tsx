@@ -394,7 +394,16 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
                   (cc.title.toLowerCase().includes(wc.toLowerCase()) ||
                    cc.body_md?.toLowerCase().includes(wc.toLowerCase())))
               ) ?? []}
-              onContinue={() => setCheckpoint(null)}
+              onContinue={() => {
+                setCheckpoint(null);
+                // Auto-advance to next card so the quiz doesn't remount and loop
+                if (currentIndex < total - 1) {
+                  setDirection(1);
+                  setCurrentIndex((i) => i + 1);
+                  setCurrentSlide(0);
+                  setTotalSlides(1);
+                }
+              }}
               onReviewWeak={() => {
                 // Jump to the first remediation page card
                 if (checkpoint.remediationCardIds.length > 0) {
