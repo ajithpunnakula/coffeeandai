@@ -43,6 +43,7 @@ All workflows are driven by [Claude Code](https://claude.com/claude-code) skills
 
 | Skill | Description |
 |-------|-------------|
+| `/fetch` | Fetch content from URLs or file paths, auto-detect type, and convert to markdown |
 | `/wikify` | Process raw sources into wiki pages — creates summaries, entities, and concept pages |
 | `/query` | Search the wiki and synthesize an answer with citations |
 | `/generate-course` | Generate a card-based certification training course from wiki content |
