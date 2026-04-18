@@ -53,7 +53,7 @@ export async function generateCardContent(
   const result = await streamText({
     model: openai("gpt-4o-mini"),
     prompt,
-    maxTokens: 3000,
+    maxOutputTokens: 3000,
   });
 
   let fullText = "";
