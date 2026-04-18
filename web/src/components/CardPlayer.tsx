@@ -8,6 +8,7 @@ import QuizCard from "./QuizCard";
 import ScenarioCard from "./ScenarioCard";
 import ReflectionCard from "./ReflectionCard";
 import TutorPanel from "./TutorPanel";
+import NavHint from "./NavHint";
 
 interface CardPlayerProps {
   cards: any[];
@@ -66,7 +67,6 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const total = cards.length;
   const cardProgressPct = Math.round(((currentIndex + 1) / total) * 100);
 
-  // Group cards by domain
   const domainGroups = cards.reduce<
     { domain: string; cards: { index: number; title: string; type: string }[] }[]
   >((acc, c, i) => {
@@ -148,6 +148,7 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     setNavOpen(false);
   }
 
+  // Keyboard navigation
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName;
@@ -160,18 +161,6 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [goForward, goBack]);
-
-  const isPageCard = card.card_type === "page";
-  const hasMoreSlides = isPageCard && currentSlide < totalSlides - 1;
-  const canGoNextCard = currentIndex < total - 1 && (isPageCard || completedCards.has(card.id));
-  const canContinue = hasMoreSlides || canGoNextCard;
-  const isAtLastCard = currentIndex === total - 1;
-  const canGoBackAtAll = currentIndex > 0 || (isPageCard && currentSlide > 0);
-  const showNav = isPageCard || completedCards.has(card.id);
-
-  let continueLabel = "Continue";
-  if (isPageCard && !hasMoreSlides && canGoNextCard) continueLabel = "Next Card";
-  else if (completedCards.has(card.id)) continueLabel = "Next";
 
   function renderCard() {
     switch (card.card_type) {
@@ -198,8 +187,7 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
 
   return (
     <>
-      {/* Scrollable content area with bottom padding for sticky bar */}
-      <div className="max-w-3xl mx-auto pt-6 px-4 pb-24">
+      <div className="max-w-3xl mx-auto pt-6 px-4 pb-8">
         {/* Progress header */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-2">
@@ -208,7 +196,6 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
               <span className="text-sm font-semibold text-amber-400">{cardProgressPct}%</span>
             </div>
 
-            {/* Card nav dropdown */}
             <div className="relative" ref={navRef}>
               <button
                 onClick={() => setNavOpen(!navOpen)}
@@ -286,37 +273,11 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
         </AnimatePresence>
       </div>
 
-      {/* Sticky bottom navigation bar */}
-      {showNav && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-800 bg-gray-950/95 backdrop-blur-sm">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-            <button
-              onClick={goBack}
-              disabled={!canGoBackAtAll}
-              className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back
-            </button>
+      {/* One-time navigation hint */}
+      <NavHint />
 
-            {/* Tutor button — inline in the sticky bar */}
-            <TutorPanel courseSlug={courseSlug} cardId={card.id} />
-
-            <button
-              onClick={goForward}
-              disabled={!canContinue && !isAtLastCard}
-              className={`inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none bg-gradient-to-r ${domainGradient}`}
-            >
-              {continueLabel}
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Floating AI Tutor */}
+      <TutorPanel courseSlug={courseSlug} cardId={card.id} />
     </>
   );
 }
