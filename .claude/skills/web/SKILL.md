@@ -1,7 +1,7 @@
 ---
 name: web
 description: Fetch web pages and convert to markdown
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Bash
 ---
 

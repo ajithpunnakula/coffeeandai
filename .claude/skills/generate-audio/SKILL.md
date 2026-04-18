@@ -1,7 +1,7 @@
 ---
 name: generate-audio
 description: Generate TTS audio from speaker_notes and upload to Vercel Blob
-user-invocable: true
+user-invocable: false
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
