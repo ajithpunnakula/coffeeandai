@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,22 +12,37 @@ interface TutorPanelProps {
   cardId: string;
 }
 
+const SUGGESTED_STARTERS = [
+  "Explain this simply",
+  "Give me a real-world example",
+  "What might the exam ask?",
+  "Why does this matter?",
+];
+
 export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevCardIdRef = useRef(cardId);
+
+  // Only clear messages when switching to a different card (not slides within a card)
+  useEffect(() => {
+    if (cardId !== prevCardIdRef.current) {
+      setMessages([]);
+      prevCardIdRef.current = cardId;
+    }
+  }, [cardId]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  async function handleSend() {
-    const text = input.trim();
-    if (!text || streaming) return;
+  async function sendMessage(text: string) {
+    if (!text.trim() || streaming) return;
 
-    const userMessage: Message = { role: "user", content: text };
+    const userMessage: Message = { role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setStreaming(true);
@@ -38,7 +53,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
       const resp = await fetch("/api/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ courseSlug, cardId, message: text }),
+        body: JSON.stringify({ courseSlug, cardId, message: text.trim() }),
       });
 
       if (!resp.ok) {
@@ -98,7 +113,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      sendMessage(input);
     }
   }
 
@@ -147,12 +162,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -160,14 +170,26 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[12rem]">
         {messages.length === 0 && (
-          <div className="text-center mt-8 space-y-2">
-            <div className="text-2xl">🤖</div>
-            <p className="text-sm text-gray-500">
-              Ask a question about this card.
-            </p>
-            <p className="text-xs text-gray-600">
-              I&apos;ll guide you through it, not just give the answer.
-            </p>
+          <div className="space-y-4 mt-4">
+            <div className="text-center space-y-2">
+              <div className="text-2xl">🤖</div>
+              <p className="text-sm text-gray-500">
+                Ask a question about this card.
+              </p>
+            </div>
+            {/* Suggested starters */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {SUGGESTED_STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  onClick={() => sendMessage(starter)}
+                  disabled={streaming}
+                  className="text-xs bg-gray-800 text-gray-400 hover:text-amber-400 hover:bg-gray-700 rounded-full px-3 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -201,7 +223,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
           className="flex-1 text-sm bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 disabled:opacity-50"
         />
         <button
-          onClick={handleSend}
+          onClick={() => sendMessage(input)}
           disabled={streaming || !input.trim()}
           className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm rounded-xl hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
