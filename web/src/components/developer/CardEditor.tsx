@@ -41,11 +41,11 @@ export default function CardEditor({
         />
       );
     case "quiz":
-      return <QuizCardEditor card={normalizedCard} onChange={onChange} />;
+      return <QuizCardEditor card={normalizedCard} preview={preview} onChange={onChange} />;
     case "scenario":
-      return <ScenarioCardEditor card={normalizedCard} onChange={onChange} />;
+      return <ScenarioCardEditor card={normalizedCard} preview={preview} onChange={onChange} />;
     case "reflection":
-      return <ReflectionCardEditor card={normalizedCard} onChange={onChange} />;
+      return <ReflectionCardEditor card={normalizedCard} preview={preview} onChange={onChange} />;
     default:
       return (
         <div className="p-4 text-gray-400">
