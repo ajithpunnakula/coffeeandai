@@ -8,7 +8,11 @@ test.describe("404 page", () => {
 
   test("static assets return without server error", async ({ page }) => {
     const response = await page.goto("/favicon.png");
-    // Should be 200 (exists) or 404 (not found), never 500
+    expect(response?.status()).toBeLessThan(500);
+  });
+
+  test("apple-touch-icon requests do not return 500", async ({ page }) => {
+    const response = await page.goto("/apple-touch-icon.png");
     expect(response?.status()).toBeLessThan(500);
   });
 });
