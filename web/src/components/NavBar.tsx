@@ -3,7 +3,13 @@ import { auth } from "@clerk/nextjs/server";
 import { UserButton, SignInButton } from "@clerk/nextjs";
 
 export default async function NavBar() {
-  const { userId } = await auth();
+  let userId: string | null = null;
+  try {
+    const result = await auth();
+    userId = result.userId;
+  } catch {
+    // auth() fails on routes outside clerkMiddleware (e.g. /_not-found)
+  }
 
   return (
     <nav className="border-b border-gray-800/50 bg-gray-950/80 backdrop-blur-sm px-4 py-3 sticky top-0 z-40">
