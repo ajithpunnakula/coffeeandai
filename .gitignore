@@ -1,7 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 
@@ -9,7 +7,7 @@
 /coverage
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -18,6 +16,7 @@
 # misc
 .DS_Store
 *.pem
+*.tmp
 
 # debug
 npm-debug.log*
@@ -27,6 +26,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.envrc
 
 # vercel
 .vercel
@@ -34,3 +34,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+.venv/
+__pycache__/
+
+# claude code
+.claude/settings.local.json
+.claude/plans/
+
+# obsidian
+.obsidian/
+
+# wiki-fetch output (tracked separately)
+# fetch/output/
