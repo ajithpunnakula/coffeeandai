@@ -1,0 +1,19 @@
+name: Publish Content to Neon
+
+on:
+  push:
+    branches: [main]
+    paths: ["courses/**"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      - run: npx tsx scripts/publish-content.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

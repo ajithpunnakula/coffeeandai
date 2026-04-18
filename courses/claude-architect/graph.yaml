@@ -1,0 +1,74 @@
+# Concept prerequisites for Claude Architect course
+concepts:
+  agentic-loop:
+    prerequisites: []
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Agentic Loop"
+  stop-reason-mechanics:
+    prerequisites: [agentic-loop]
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Agentic Loop"
+  multi-agent-orchestration:
+    prerequisites: [agentic-loop, subagents]
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Subagents"
+  subagents:
+    prerequisites: [agentic-loop]
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Subagents"
+  hooks:
+    prerequisites: [agentic-loop]
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Hooks"
+  tool-design:
+    prerequisites: []
+    domain: "Tool Design & MCP Integration"
+    wiki_page: "Structured Output"
+  structured-errors:
+    prerequisites: [tool-design]
+    domain: "Tool Design & MCP Integration"
+    wiki_page: "Structured Output"
+  mcp:
+    prerequisites: [tool-design]
+    domain: "Tool Design & MCP Integration"
+    wiki_page: "MCP"
+  claude-md-hierarchy:
+    prerequisites: []
+    domain: "Claude Code Configuration & Workflows"
+    wiki_page: "CLAUDE.md File"
+  skills-and-commands:
+    prerequisites: [claude-md-hierarchy]
+    domain: "Claude Code Configuration & Workflows"
+    wiki_page: "Skills"
+  ci-cd-integration:
+    prerequisites: []
+    domain: "Claude Code Configuration & Workflows"
+    wiki_page: "Claude Code"
+  prompt-engineering:
+    prerequisites: []
+    domain: "Prompt Engineering & Structured Output"
+    wiki_page: "Structured Output"
+  structured-output:
+    prerequisites: [tool-design, prompt-engineering]
+    domain: "Prompt Engineering & Structured Output"
+    wiki_page: "Structured Output"
+  validation-retry-loops:
+    prerequisites: [structured-output, agentic-loop]
+    domain: "Prompt Engineering & Structured Output"
+    wiki_page: "Structured Output"
+  context-management:
+    prerequisites: [agentic-loop]
+    domain: "Context Management & Reliability"
+    wiki_page: "Context Window"
+  auto-compaction:
+    prerequisites: [context-management]
+    domain: "Context Management & Reliability"
+    wiki_page: "Auto-compaction"
+  escalation-patterns:
+    prerequisites: [context-management, hooks]
+    domain: "Context Management & Reliability"
+    wiki_page: "Context Window"
+  anti-patterns:
+    prerequisites: []
+    domain: "Agentic Architecture & Orchestration"
+    wiki_page: "Claude Certified Architect Exam"

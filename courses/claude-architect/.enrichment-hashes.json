@@ -1,0 +1,50 @@
+{
+  "01-welcome.md": {
+    "audio_hash": "dec33ee4"
+  },
+  "02-agentic-loop.md": {
+    "audio_hash": "b443c50d"
+  },
+  "03-stop-reasons.md": {
+    "audio_hash": "d917d590"
+  },
+  "05-multi-agent-orchestration.md": {
+    "audio_hash": "3949bbaf"
+  },
+  "06-hooks-enforcement.md": {
+    "audio_hash": "8d8b1a46"
+  },
+  "09-tool-design-basics.md": {
+    "audio_hash": "99d8f826"
+  },
+  "10-structured-errors.md": {
+    "audio_hash": "7280b5e8"
+  },
+  "11-mcp-configuration.md": {
+    "audio_hash": "d5fa76a8"
+  },
+  "15-claude-md-hierarchy.md": {
+    "audio_hash": "b64e3890"
+  },
+  "16-commands-vs-skills.md": {
+    "audio_hash": "31b19d3f"
+  },
+  "17-plan-mode-iteration.md": {
+    "audio_hash": "ac9fdefc"
+  },
+  "21-explicit-criteria.md": {
+    "audio_hash": "6b2c2204"
+  },
+  "22-few-shot-tool-use.md": {
+    "audio_hash": "dc6df92a"
+  },
+  "24-validation-retry-loops.md": {
+    "audio_hash": "b5946edd"
+  },
+  "27-context-optimization.md": {
+    "audio_hash": "3e243f45"
+  },
+  "28-escalation-error-propagation.md": {
+    "audio_hash": "56ea092b"
+  }
+}

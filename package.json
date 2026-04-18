@@ -1,0 +1,25 @@
+{
+  "name": "llm-wiki",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajithpunnakula/llm-wiki.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ajithpunnakula/llm-wiki/issues"
+  },
+  "homepage": "https://github.com/ajithpunnakula/llm-wiki#readme",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "yaml": "^2.8.3"
+  }
+}
