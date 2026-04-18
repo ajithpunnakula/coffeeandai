@@ -51,6 +51,7 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
   const [preview, setPreview] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyCards = useRef<Set<string>>(new Set());
   const dirtyCourse = useRef(false);
@@ -196,6 +197,30 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
     });
   }
 
+  async function handlePublish() {
+    if (!confirm(`Publish "${course.title}" with ${cards.length} cards?`)) return;
+    setPublishing(true);
+    try {
+      // Flush pending saves first
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      await flushSave();
+
+      const res = await fetch(`/api/developer/courses/${course.slug}/publish`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`Publish failed: ${data.error}`);
+        return;
+      }
+      const data = await res.json();
+      alert(`Published v${data.version} successfully!`);
+      window.location.href = "/developer";
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   const statusText: Record<SaveStatus, string> = {
     saved: "Saved",
     saving: "Saving...",
@@ -248,6 +273,13 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
             }`}
           >
             {preview ? "Edit" : "Preview"}
+          </button>
+          <button
+            onClick={handlePublish}
+            disabled={publishing || cards.length === 0}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {publishing ? "Publishing..." : "Publish"}
           </button>
         </div>
       </div>
