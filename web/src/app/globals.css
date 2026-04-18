@@ -30,7 +30,7 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Fix code overflow in prose */
+/* Code block overflow fix */
 .prose pre {
   overflow-x: auto;
   max-width: 100%;
@@ -44,16 +44,42 @@ body {
   word-break: normal;
 }
 
-/* Scrollbar styling for code blocks */
-.prose pre::-webkit-scrollbar {
+/* Code block scrollbar */
+.prose pre::-webkit-scrollbar,
+pre::-webkit-scrollbar {
   height: 6px;
 }
 
-.prose pre::-webkit-scrollbar-track {
+.prose pre::-webkit-scrollbar-track,
+pre::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.prose pre::-webkit-scrollbar-thumb {
+.prose pre::-webkit-scrollbar-thumb,
+pre::-webkit-scrollbar-thumb {
   background: #4b5563;
   border-radius: 3px;
+}
+
+/* Code section styling */
+.code-section pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+/* Mobile code blocks */
+@media (max-width: 640px) {
+  pre {
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+}
+
+/* Strip wikilinks [[text]] to plain text in rendered markdown */
+.prose a[href^="[["] {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
 }
