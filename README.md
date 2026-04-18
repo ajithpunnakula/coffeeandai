@@ -16,28 +16,6 @@ The wiki serves as a living, interconnected knowledge graph — source summaries
 
 The wiki feeds into applications that turn knowledge into experiences. The web platform is built with Next.js, backed by PostgreSQL (Neon), and uses Claude as the AI engine.
 
-### Getting Started
-
-```bash
-# Prerequisites: Node.js, pnpm, PostgreSQL (Neon)
-
-# Install dependencies
-cd web && pnpm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, CLERK keys
-
-# Run the database schema
-psql $DATABASE_URL -f db/schema.sql
-
-# Publish course content to the database
-npx tsx scripts/publish-content.ts
-
-# Start the dev server
-pnpm dev
-```
-
 See [architecture.md](architecture.md) for the full system design.
 
 ## Solutions
@@ -59,6 +37,18 @@ The first application built on the platform. CoffeeAndAI generates personalized 
 
 Try it at [coffeeand.ai](https://coffeeand.ai).
 
+## Skills
+
+All workflows are driven by [Claude Code](https://claude.com/claude-code) skills:
+
+| Skill | Description |
+|-------|-------------|
+| `/wikify` | Process raw sources into wiki pages — creates summaries, entities, and concept pages |
+| `/query` | Search the wiki and synthesize an answer with citations |
+| `/generate-course` | Generate a card-based certification training course from wiki content |
+| `/lint` | Health-check the wiki for contradictions, orphans, missing links, and stale content |
+| `/bugfix` | Check Sentry errors, Axiom logs, and other monitoring sources for bugs, then fix them with regression tests |
+
 ## Project Structure
 
 ```
@@ -74,4 +64,4 @@ fetch/            # Source ingestion pipeline
 
 ## License
 
-ISC
+Apache-2.0
