@@ -53,11 +53,9 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
       setSelected(null);
     } else {
       setFinished(true);
-      const finalCorrect = correctCount + (selected === correctIndex ? 0 : 0);
+      const finalCorrect = correctCount + (selected === correctIndex ? 1 : 0);
       const score = finalCorrect / questions.length;
-      if (score >= pass_threshold) {
-        onComplete(score);
-      }
+      onComplete(score);
     }
   }
 
