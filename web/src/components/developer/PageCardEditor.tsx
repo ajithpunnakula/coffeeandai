@@ -1,7 +1,6 @@
 "use client";
 
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import PageCard from "@/components/PageCard";
 
 interface PageCardEditorProps {
   card: {
@@ -24,13 +23,19 @@ export default function PageCardEditor({
 }: PageCardEditorProps) {
   if (preview) {
     return (
-      <div className="space-y-4 p-4">
-        <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
-        <div className="prose prose-sm prose-invert max-w-none prose-p:text-gray-300 prose-strong:text-gray-100 prose-a:text-amber-400 prose-headings:text-gray-100">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {card.body_md ?? ""}
-          </ReactMarkdown>
-        </div>
+      <div className="p-5 sm:p-8 max-w-2xl mx-auto">
+        <PageCard
+          key={card.id}
+          card={{
+            id: card.id,
+            title: card.title,
+            body_md: card.body_md ?? "",
+            domain: card.domain ?? "",
+            difficulty: card.difficulty ?? 0,
+            image_url: card.image_url ?? undefined,
+            audio_url: card.audio_url ?? undefined,
+          }}
+        />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import ScenarioCard from "@/components/ScenarioCard";
 
 interface Choice {
   text: string;
@@ -83,71 +83,10 @@ export default function ScenarioCardEditor({
     updateStep(stepIdx, { choices: newChoices });
   }
 
-  const stepMap = new Map(steps.map((s) => [s.id, s]));
-  const [previewStepId, setPreviewStepId] = useState("start");
-  const [previewScores, setPreviewScores] = useState<number[]>([]);
-  const [previewFinished, setPreviewFinished] = useState(false);
-
   if (preview) {
-    const currentStep = stepMap.get(previewStepId);
-    if (!currentStep) {
-      return (
-        <div className="p-4 max-w-2xl mx-auto">
-          <h2 className="text-xl font-bold text-gray-100 mb-4">{card.title}</h2>
-          <p className="text-red-400 text-sm">Step &quot;{previewStepId}&quot; not found. Check step IDs.</p>
-          <button
-            onClick={() => { setPreviewStepId("start"); setPreviewScores([]); setPreviewFinished(false); }}
-            className="mt-3 px-4 py-2 bg-gray-800 text-gray-300 rounded-xl text-sm hover:bg-gray-700"
-          >
-            Restart
-          </button>
-        </div>
-      );
-    }
-
-    if (previewFinished && currentStep.outcome) {
-      const avg = previewScores.length > 0 ? previewScores.reduce((a, b) => a + b, 0) / previewScores.length : 0;
-      return (
-        <div className="space-y-4 p-4 max-w-2xl mx-auto">
-          <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
-          <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-xl">
-            <p className="font-medium text-amber-400 text-sm mb-1">Outcome</p>
-            <p className="text-gray-200">{currentStep.outcome}</p>
-          </div>
-          <p className="text-sm text-gray-500">Path score: {avg.toFixed(2)}</p>
-          <button
-            onClick={() => { setPreviewStepId("start"); setPreviewScores([]); setPreviewFinished(false); }}
-            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-400 hover:to-orange-500 transition-all text-sm font-medium"
-          >
-            Restart
-          </button>
-        </div>
-      );
-    }
-
     return (
-      <div className="space-y-4 p-4 max-w-2xl mx-auto">
-        <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
-        <p className="text-gray-300">{currentStep.situation}</p>
-        <div className="space-y-2">
-          {currentStep.choices?.map((choice, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                const newScores = [...previewScores, choice.score];
-                const nextStep = stepMap.get(choice.next);
-                setPreviewScores(newScores);
-                setPreviewStepId(choice.next);
-                if (nextStep?.outcome) {
-                  setPreviewFinished(true);
-                }
-              }}
-              className="w-full text-left px-4 py-3 rounded-xl border border-gray-700 hover:border-amber-500/50 hover:bg-amber-500/5 text-gray-300 hover:text-gray-100 transition-colors text-sm"
-            >
-              {choice.text}
-            </button>
-          ))}
-        </div>
+      <div className="p-5 sm:p-8 max-w-2xl mx-auto">
+        <ScenarioCard key={card.id} card={card as any} onComplete={() => {}} />
       </div>
     );
   }
