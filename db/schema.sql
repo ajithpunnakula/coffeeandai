@@ -155,3 +155,31 @@ CREATE TABLE IF NOT EXISTS learner.profiles (
   updated_at TIMESTAMPTZ DEFAULT now(),
   PRIMARY KEY (user_id, course_slug)
 );
+
+-- Gamification columns on users
+ALTER TABLE learner.users
+  ADD COLUMN IF NOT EXISTS total_xp INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS current_streak INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS longest_streak INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_activity_date DATE,
+  ADD COLUMN IF NOT EXISTS badges JSONB DEFAULT '[]'::jsonb;
+
+-- XP ledger: append-only log of all XP earned
+CREATE TABLE IF NOT EXISTS learner.xp_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES learner.users(id),
+  xp INT NOT NULL,
+  reason TEXT NOT NULL,
+  source_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_xp_events_user ON learner.xp_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_xp_events_created ON learner.xp_events(user_id, created_at);
+
+-- Activity days: one row per user per calendar day they were active
+CREATE TABLE IF NOT EXISTS learner.activity_days (
+  user_id UUID NOT NULL REFERENCES learner.users(id),
+  activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  cards_completed INT DEFAULT 1,
+  PRIMARY KEY (user_id, activity_date)
+);

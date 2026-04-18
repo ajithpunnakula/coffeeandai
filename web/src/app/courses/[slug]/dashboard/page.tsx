@@ -45,7 +45,7 @@ export default async function DashboardPage({
   const dbUserId = userRows[0].id;
 
   // Fetch profile, progress stats, and event counts in parallel
-  const [profileRows, progressRows, eventRows, completionRows] =
+  const [profileRows, progressRows, eventRows, completionRows, gamificationRows] =
     await Promise.all([
       sql`
         SELECT domain_mastery, weak_concepts, summary_md, updated_at
@@ -78,6 +78,11 @@ export default async function DashboardPage({
         FROM learner.completions
         WHERE user_id = ${dbUserId} AND course_slug = ${slug}
         ORDER BY completed_at DESC LIMIT 1
+      `,
+      sql`
+        SELECT total_xp, current_streak, longest_streak, last_activity_date, badges
+        FROM learner.users
+        WHERE id = ${dbUserId}
       `,
     ]);
 
@@ -121,6 +126,26 @@ export default async function DashboardPage({
       }
     : null;
 
+  const gamification = gamificationRows[0]
+    ? (() => {
+        const g = gamificationRows[0];
+        let currentStreak = g.current_streak ?? 0;
+        if (g.last_activity_date && currentStreak > 0) {
+          const today = new Date();
+          today.setUTCHours(0, 0, 0, 0);
+          const last = new Date(g.last_activity_date);
+          last.setUTCHours(0, 0, 0, 0);
+          if (Math.floor((today.getTime() - last.getTime()) / 86400000) > 1) currentStreak = 0;
+        }
+        return {
+          totalXp: g.total_xp ?? 0,
+          currentStreak,
+          longestStreak: g.longest_streak ?? 0,
+          badges: g.badges ?? [],
+        };
+      })()
+    : null;
+
   return (
     <DashboardClient
       courseSlug={slug}
@@ -130,6 +155,7 @@ export default async function DashboardPage({
       domainProgress={domainProgress}
       eventStats={eventStats}
       completion={completion}
+      gamification={gamification}
     />
   );
 }

@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
 }
 
-async function getOrCreateUser(sql: any, clerkId: string) {
+async function getOrCreateUser(sql: any, clerkId: string, displayName?: string | null) {
   const rows =
-    await sql`SELECT id FROM learner.users WHERE clerk_id = ${clerkId}`;
-  if (rows.length > 0) return rows[0].id;
+    await sql`SELECT id, display_name FROM learner.users WHERE clerk_id = ${clerkId}`;
+  if (rows.length > 0) {
+    // Backfill display_name if missing
+    if (!rows[0].display_name && displayName) {
+      await sql`UPDATE learner.users SET display_name = ${displayName} WHERE clerk_id = ${clerkId}`;
+    }
+    return rows[0].id;
+  }
   const newRows =
-    await sql`INSERT INTO learner.users (clerk_id) VALUES (${clerkId}) RETURNING id`;
+    await sql`INSERT INTO learner.users (clerk_id, display_name) VALUES (${clerkId}, ${displayName ?? null}) RETURNING id`;
   return newRows[0].id;
 }
 
@@ -39,7 +45,11 @@ export async function POST(request: Request) {
     }
 
     const sql = getDb();
-    const userId = await getOrCreateUser(sql, clerkId);
+    const user = await currentUser();
+    const displayName = user?.firstName
+      ? `${user.firstName}${user.lastName ? ` ${user.lastName.charAt(0)}.` : ""}`
+      : null;
+    const userId = await getOrCreateUser(sql, clerkId, displayName);
 
     const existing =
       await sql`SELECT user_id FROM learner.enrollments WHERE user_id = ${userId} AND course_slug = ${courseSlug}`;
