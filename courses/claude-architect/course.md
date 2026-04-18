@@ -2,7 +2,7 @@
 type: course
 id: "course_claude_architect"
 title: "Claude Certified Architect: Foundations Exam Prep"
-status: draft
+status: published
 exam_target: "claude-certified-architect-foundations"
 target_audience: "Developers preparing for the Claude Certified Architect exam"
 estimated_minutes: 90
