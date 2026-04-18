@@ -8,7 +8,6 @@ import QuizCard from "./QuizCard";
 import ScenarioCard from "./ScenarioCard";
 import ReflectionCard from "./ReflectionCard";
 import TutorPanel from "./TutorPanel";
-import { splitSections } from "@/lib/split-sections";
 
 interface CardPlayerProps {
   cards: any[];
@@ -23,6 +22,14 @@ const DOMAIN_COLORS: Record<string, string> = {
   "Context Management & Reliability": "from-cyan-500 to-cyan-600",
 };
 
+const DOMAIN_DOT_COLORS: Record<string, string> = {
+  "Agentic Architecture & Orchestration": "bg-blue-500",
+  "Tool Design & MCP Integration": "bg-purple-500",
+  "Claude Code Configuration & Workflows": "bg-emerald-500",
+  "Prompt Engineering & Structured Output": "bg-amber-500",
+  "Context Management & Reliability": "bg-cyan-500",
+};
+
 function getDomainGradient(domain: string): string {
   for (const [key, gradient] of Object.entries(DOMAIN_COLORS)) {
     if (domain?.toLowerCase().includes(key.toLowerCase().split(" ")[0])) {
@@ -32,32 +39,54 @@ function getDomainGradient(domain: string): string {
   return "from-amber-500 to-orange-600";
 }
 
+function getDomainDotColor(domain: string): string {
+  for (const [key, color] of Object.entries(DOMAIN_DOT_COLORS)) {
+    if (domain?.toLowerCase().includes(key.toLowerCase().split(" ")[0])) {
+      return color;
+    }
+  }
+  return "bg-amber-500";
+}
+
+const CARD_TYPE_ICONS: Record<string, string> = {
+  page: "📄",
+  quiz: "❓",
+  scenario: "🎭",
+  reflection: "💭",
+};
+
 export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(1);
+  const [navOpen, setNavOpen] = useState(false);
 
-  // Track slide position within page cards for granular progress
+  // Track slide position within page cards
   const [currentSlide, setCurrentSlide] = useState(0);
   const [totalSlides, setTotalSlides] = useState(1);
 
   const pageCardRef = useRef<PageCardRef>(null);
+  const navRef = useRef<HTMLDivElement>(null);
 
   const card = cards[currentIndex];
   const total = cards.length;
 
-  // Precompute total slide count across all cards for the progress bar
-  const cardSlideCounts = cards.map((c) => {
-    if (c.card_type === "page") {
-      return splitSections(c.body_md, c.title).length;
+  // Card-level progress (stable, no slide granularity)
+  const cardProgressPct = Math.round(((currentIndex + 1) / total) * 100);
+
+  // Group cards by domain for nav
+  const domainGroups = cards.reduce<
+    { domain: string; cards: { index: number; title: string; type: string }[] }[]
+  >((acc, c, i) => {
+    const domain = c.domain ?? "General";
+    let group = acc.find((g) => g.domain === domain);
+    if (!group) {
+      group = { domain, cards: [] };
+      acc.push(group);
     }
-    return 1;
-  });
-  const totalSteps = cardSlideCounts.reduce((a, b) => a + b, 0);
-  const completedSteps =
-    cardSlideCounts.slice(0, currentIndex).reduce((a, b) => a + b, 0) +
-    (card.card_type === "page" ? currentSlide + 1 : 1);
-  const progressPct = Math.round((completedSteps / totalSteps) * 100);
+    group.cards.push({ index: i, title: c.title, type: c.card_type });
+    return acc;
+  }, []);
 
   const postProgress = useCallback(
     async (cardId: string, status: string, score?: number) => {
@@ -75,10 +104,21 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   );
 
   useEffect(() => {
-    if (card) {
-      postProgress(card.id, "viewed");
-    }
+    if (card) postProgress(card.id, "viewed");
   }, [card, postProgress]);
+
+  // Close nav on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setNavOpen(false);
+      }
+    }
+    if (navOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [navOpen]);
 
   function handleComplete(score?: number) {
     setCompletedCards((prev) => new Set(prev).add(card.id));
@@ -90,13 +130,11 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     setTotalSlides(total);
   }
 
-  // Unified forward: advance slide within page card first, then next card
   const goForward = useCallback(() => {
     if (card.card_type === "page" && pageCardRef.current?.canAdvanceSlide()) {
       pageCardRef.current.advanceSlide();
       return;
     }
-    // Advance to next card if allowed
     const canGoNext =
       currentIndex < total - 1 &&
       (card.card_type === "page" || completedCards.has(card.id));
@@ -108,7 +146,6 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     }
   }, [card, currentIndex, total, completedCards]);
 
-  // Unified backward: go back slide first, then previous card
   const goBack = useCallback(() => {
     if (card.card_type === "page" && pageCardRef.current?.canGoBackSlide()) {
       pageCardRef.current.goBackSlide();
@@ -122,22 +159,20 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     }
   }, [card, currentIndex]);
 
-  // Jump to a specific card
   function jumpToCard(index: number) {
     if (index === currentIndex) return;
     setDirection(index > currentIndex ? 1 : -1);
     setCurrentIndex(index);
     setCurrentSlide(0);
     setTotalSlides(1);
+    setNavOpen(false);
   }
 
-  // Keyboard navigation: Left/Right = slides + cards, Down/Up = code expand/collapse
+  // Keyboard navigation
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      // Don't intercept when user is typing in input/textarea
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
-
       if (e.key === "ArrowRight" || e.key === " ") {
         e.preventDefault();
         goForward();
@@ -145,26 +180,17 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
         e.preventDefault();
         goBack();
       } else if (e.key === "ArrowDown") {
-        // Expand code blocks
         e.preventDefault();
-        const expandBtn = document.querySelector<HTMLButtonElement>(
-          "[data-code-expand]",
-        );
-        if (expandBtn) expandBtn.click();
+        document.querySelector<HTMLButtonElement>("[data-code-expand]")?.click();
       } else if (e.key === "ArrowUp") {
-        // Collapse code blocks
         e.preventDefault();
-        const collapseBtn = document.querySelector<HTMLButtonElement>(
-          "[data-code-collapse]",
-        );
-        if (collapseBtn) collapseBtn.click();
+        document.querySelector<HTMLButtonElement>("[data-code-collapse]")?.click();
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [goForward, goBack]);
 
-  // Can the outer "Continue" button advance?
   const isPageCard = card.card_type === "page";
   const hasMoreSlides = isPageCard && currentSlide < totalSlides - 1;
   const canGoNextCard =
@@ -174,15 +200,9 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const isAtLastCard = currentIndex === total - 1;
   const canGoBackAtAll = currentIndex > 0 || (isPageCard && currentSlide > 0);
 
-  // Button label
   let continueLabel = "Continue";
-  if (isPageCard && hasMoreSlides) {
-    continueLabel = "Continue";
-  } else if (isPageCard && !hasMoreSlides && canGoNextCard) {
-    continueLabel = "Next Card";
-  } else if (completedCards.has(card.id)) {
-    continueLabel = "Next";
-  }
+  if (isPageCard && !hasMoreSlides && canGoNextCard) continueLabel = "Next Card";
+  else if (completedCards.has(card.id)) continueLabel = "Next";
 
   function renderCard() {
     switch (card.card_type) {
@@ -195,29 +215,11 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
           />
         );
       case "quiz":
-        return (
-          <QuizCard
-            key={card.id}
-            card={card}
-            onComplete={(score) => handleComplete(score)}
-          />
-        );
+        return <QuizCard key={card.id} card={card} onComplete={(s) => handleComplete(s)} />;
       case "scenario":
-        return (
-          <ScenarioCard
-            key={card.id}
-            card={card}
-            onComplete={(score) => handleComplete(score)}
-          />
-        );
+        return <ScenarioCard key={card.id} card={card} onComplete={(s) => handleComplete(s)} />;
       case "reflection":
-        return (
-          <ReflectionCard
-            key={card.id}
-            card={card}
-            onComplete={() => handleComplete()}
-          />
-        );
+        return <ReflectionCard key={card.id} card={card} onComplete={() => handleComplete()} />;
       default:
         return <p>Unknown card type: {card.card_type}</p>;
     }
@@ -226,78 +228,83 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const domainGradient = getDomainGradient(card.domain);
 
   const variants = {
-    enter: (dir: number) => ({
-      opacity: 0,
-      y: dir > 0 ? 20 : -20,
-      scale: 0.98,
-    }),
-    center: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-    },
-    exit: (dir: number) => ({
-      opacity: 0,
-      y: dir > 0 ? -20 : 20,
-      scale: 0.98,
-    }),
+    enter: (dir: number) => ({ opacity: 0, y: dir > 0 ? 20 : -20, scale: 0.98 }),
+    center: { opacity: 1, y: 0, scale: 1 },
+    exit: (dir: number) => ({ opacity: 0, y: dir > 0 ? -20 : 20, scale: 0.98 }),
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      {/* Segmented progress bar — clickable to jump */}
-      <div className="mb-6">
-        <div className="flex justify-between text-xs mb-2">
-          <span className="font-medium text-gray-400">
-            Card {currentIndex + 1} of {total}
-            {isPageCard && totalSlides > 1 && (
-              <span className="text-gray-600">
-                {" "}
-                &middot; slide {currentSlide + 1}/{totalSlides}
-              </span>
+    <div className="max-w-3xl mx-auto py-6 px-4">
+      {/* Progress header */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            {/* Course progress */}
+            <span className="text-xs text-gray-500">Course progress</span>
+            <span className="text-sm font-semibold text-amber-400">{cardProgressPct}%</span>
+          </div>
+
+          {/* Card nav dropdown */}
+          <div className="relative" ref={navRef}>
+            <button
+              onClick={() => setNavOpen(!navOpen)}
+              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 bg-gray-800/50 hover:bg-gray-800 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <span>Card {currentIndex + 1}/{total}</span>
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${navOpen ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {navOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl shadow-black/50 z-50">
+                {domainGroups.map((group) => (
+                  <div key={group.domain}>
+                    <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm px-4 py-2 border-b border-gray-800">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${getDomainDotColor(group.domain)}`} />
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                          {group.domain}
+                        </span>
+                      </div>
+                    </div>
+                    {group.cards.map((c) => (
+                      <button
+                        key={c.index}
+                        onClick={() => jumpToCard(c.index)}
+                        className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors ${
+                          c.index === currentIndex
+                            ? "bg-amber-500/10 text-amber-400"
+                            : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                        }`}
+                      >
+                        <span className="text-xs shrink-0">{CARD_TYPE_ICONS[c.type] ?? "📄"}</span>
+                        <span className="truncate">{c.title}</span>
+                        {completedCards.has(cards[c.index].id) && (
+                          <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
             )}
-          </span>
-          <span className="text-amber-400 font-semibold">{progressPct}%</span>
+          </div>
         </div>
 
-        {/* Segmented bar — clickable segments */}
-        <div className="flex gap-0.5 h-2">
-          {cards.map((c, i) => {
-            const slideCount = cardSlideCounts[i];
-            const isCurrentCard = i === currentIndex;
-            const isPastCard = i < currentIndex;
-
-            let fillPct = 0;
-            if (isPastCard) fillPct = 100;
-            else if (isCurrentCard) {
-              if (c.card_type === "page" && slideCount > 1) {
-                fillPct = ((currentSlide + 1) / slideCount) * 100;
-              } else if (completedCards.has(c.id)) {
-                fillPct = 100;
-              } else {
-                fillPct = 50;
-              }
-            }
-
-            return (
-              <button
-                key={c.id}
-                onClick={() => jumpToCard(i)}
-                className={`flex-1 rounded-full overflow-hidden transition-all ${
-                  isCurrentCard
-                    ? "ring-1 ring-amber-400/50"
-                    : "hover:ring-1 hover:ring-gray-600"
-                } ${isPastCard || isCurrentCard ? "bg-gray-700" : "bg-gray-800"}`}
-                style={{ flexGrow: slideCount }}
-                title={`Card ${i + 1}: ${c.title}`}
-              >
-                <div
-                  className={`h-full rounded-full bg-gradient-to-r ${domainGradient} transition-all duration-500`}
-                  style={{ width: `${fillPct}%` }}
-                />
-              </button>
-            );
-          })}
+        {/* Simple course progress bar */}
+        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full bg-gradient-to-r ${domainGradient} transition-all duration-500`}
+            style={{ width: `${cardProgressPct}%` }}
+          />
         </div>
       </div>
 
@@ -314,19 +321,19 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
           className="rounded-2xl border border-gray-800 bg-gray-900/80 overflow-hidden"
         >
           <div className={`h-1 bg-gradient-to-r ${domainGradient}`} />
-          <div className="p-6 sm:p-8">
+          <div className="p-5 sm:p-8">
             {renderCard()}
           </div>
         </motion.div>
       </AnimatePresence>
 
-      {/* Unified navigation — single Continue button for slides + cards */}
+      {/* Navigation */}
       {(isPageCard || completedCards.has(card.id)) && (
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between mt-5">
           <button
             onClick={goBack}
             disabled={!canGoBackAtAll}
-            className="inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[120px] justify-center"
+            className="inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[110px] justify-center"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -336,7 +343,7 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
           <button
             onClick={goForward}
             disabled={!canContinue && !isAtLastCard}
-            className={`inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none min-w-[120px] justify-center bg-gradient-to-r ${domainGradient}`}
+            className={`inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none min-w-[110px] justify-center bg-gradient-to-r ${domainGradient}`}
           >
             {continueLabel}
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
