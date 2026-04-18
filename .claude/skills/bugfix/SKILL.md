@@ -1,6 +1,6 @@
 ---
-name: fix
-description: Check Sentry errors, Axiom logs, and other monitoring sources for issues, then fix them
+name: bugfix
+description: Check Sentry errors, Axiom logs, and other monitoring sources for bugs, then fix them with regression tests
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
