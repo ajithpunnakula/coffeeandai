@@ -3,7 +3,6 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
 import type { Section } from "@/lib/split-sections";
 
 const MAX_VISIBLE_LINES = 14;
@@ -18,11 +17,22 @@ export default function CodeSection({ section }: { section: Section }) {
   const visibleCode = expanded ? code : lines.slice(0, MAX_VISIBLE_LINES).join("\n");
   const lang = section.codeLang ?? "";
 
-  function handleCopy() {
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function handleExpand(e: React.MouseEvent) {
+    e.stopPropagation();
+    setExpanded(true);
+  }
+
+  function handleCollapse(e: React.MouseEvent) {
+    e.stopPropagation();
+    setExpanded(false);
   }
 
   return (
@@ -60,13 +70,23 @@ export default function CodeSection({ section }: { section: Section }) {
           </pre>
         </div>
 
-        {/* Expand button */}
+        {/* Expand / Collapse toggle */}
         {needsExpand && !expanded && (
           <button
-            onClick={() => setExpanded(true)}
+            onClick={handleExpand}
+            data-code-expand
             className="w-full py-2 text-xs text-amber-400 hover:text-amber-300 bg-gradient-to-t from-[#0d1117] via-[#0d1117] to-transparent border-t border-gray-800/50 transition-colors"
           >
             Show all {lines.length} lines
+          </button>
+        )}
+        {needsExpand && expanded && (
+          <button
+            onClick={handleCollapse}
+            data-code-collapse
+            className="w-full py-2 text-xs text-gray-500 hover:text-gray-300 border-t border-gray-800/50 transition-colors"
+          >
+            Hide lines
           </button>
         )}
       </div>

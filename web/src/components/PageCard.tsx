@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { splitSections } from "@/lib/split-sections";
 import SectionRenderer from "./sections/SectionRenderer";
@@ -18,16 +18,28 @@ interface PageCardProps {
   onSlideChange?: (slideIndex: number, totalSlides: number) => void;
 }
 
-export default function PageCard({ card, onSlideChange }: PageCardProps) {
+export interface PageCardRef {
+  canAdvanceSlide: () => boolean;
+  canGoBackSlide: () => boolean;
+  advanceSlide: () => void;
+  goBackSlide: () => void;
+  goToSlide: (index: number) => void;
+  totalSlides: number;
+  currentSlide: number;
+}
+
+const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
+  { card, onSlideChange },
+  ref,
+) {
   const sections = splitSections(card.body_md, card.title);
   const totalSlides = sections.length;
   const isSingleSlide = totalSlides <= 1;
 
   const [slideIndex, setSlideIndex] = useState(0);
-  const [direction, setDirection] = useState(0); // -1 = back, 1 = forward
+  const [direction, setDirection] = useState(0);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Reset slide index when card changes
   useEffect(() => {
@@ -40,34 +52,29 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
     onSlideChange?.(slideIndex, totalSlides);
   }, [slideIndex, totalSlides, onSlideChange]);
 
-  const goForward = useCallback(() => {
-    if (slideIndex < totalSlides - 1) {
-      setDirection(1);
-      setSlideIndex((i) => i + 1);
-    }
-  }, [slideIndex, totalSlides]);
-
-  const goBack = useCallback(() => {
-    if (slideIndex > 0) {
-      setDirection(-1);
-      setSlideIndex((i) => i - 1);
-    }
-  }, [slideIndex]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight" || e.key === " ") {
-        e.preventDefault();
-        goForward();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        goBack();
+  // Expose imperative methods for parent to control slides
+  useImperativeHandle(ref, () => ({
+    canAdvanceSlide: () => slideIndex < totalSlides - 1,
+    canGoBackSlide: () => slideIndex > 0,
+    advanceSlide: () => {
+      if (slideIndex < totalSlides - 1) {
+        setDirection(1);
+        setSlideIndex((i) => i + 1);
       }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [goForward, goBack]);
+    },
+    goBackSlide: () => {
+      if (slideIndex > 0) {
+        setDirection(-1);
+        setSlideIndex((i) => i - 1);
+      }
+    },
+    goToSlide: (index: number) => {
+      setDirection(index > slideIndex ? 1 : -1);
+      setSlideIndex(index);
+    },
+    totalSlides,
+    currentSlide: slideIndex,
+  }), [slideIndex, totalSlides]);
 
   function toggleAudio() {
     if (!audioRef.current) return;
@@ -77,23 +84,6 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
       audioRef.current.play();
     }
     setPlaying(!playing);
-  }
-
-  // Tap zones: left 40% goes back, right 60% goes forward
-  function handleTap(e: React.MouseEvent) {
-    if (isSingleSlide) return;
-    // Don't navigate when clicking interactive elements inside sections
-    const target = e.target as HTMLElement;
-    if (target.closest("button, a, pre, code, input, textarea, select")) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const x = e.clientX - rect.left;
-    const pct = x / rect.width;
-    if (pct < 0.4) {
-      goBack();
-    } else {
-      goForward();
-    }
   }
 
   const section = sections[slideIndex];
@@ -163,13 +153,8 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
         />
       )}
 
-      {/* Slide content with tap zones */}
-      <div
-        ref={containerRef}
-        onClick={handleTap}
-        className={`relative overflow-hidden ${!isSingleSlide ? "cursor-pointer" : ""}`}
-        style={{ minHeight: 200 }}
-      >
+      {/* Slide content — no tap zones, navigation is via outer buttons */}
+      <div className="relative overflow-hidden" style={{ minHeight: 200 }}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={`${card.id}-${slideIndex}`}
@@ -191,8 +176,7 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
           {sections.map((_, i) => (
             <button
               key={i}
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setDirection(i > slideIndex ? 1 : -1);
                 setSlideIndex(i);
               }}
@@ -208,4 +192,6 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
       )}
     </div>
   );
-}
+});
+
+export default PageCard;
