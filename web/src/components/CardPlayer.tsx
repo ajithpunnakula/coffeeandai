@@ -9,10 +9,20 @@ import ScenarioCard from "./ScenarioCard";
 import ReflectionCard from "./ReflectionCard";
 import TutorPanel from "./TutorPanel";
 import NavHint from "./NavHint";
+import MasteryCheckpoint from "./MasteryCheckpoint";
+import { getRemediationCards } from "@/lib/adaptive-router";
+
+interface LearnerProfile {
+  domain_mastery: Record<string, number>;
+  weak_concepts: string[];
+  summary_md?: string;
+}
 
 interface CardPlayerProps {
   cards: any[];
   courseSlug: string;
+  learnerProfile?: LearnerProfile | null;
+  initialCompletedCards?: string[];
 }
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -52,14 +62,26 @@ const CARD_TYPE_ICONS: Record<string, string> = {
   reflection: "💭",
 };
 
-export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
+export default function CardPlayer({ cards, courseSlug, learnerProfile, initialCompletedCards }: CardPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
+  const [completedCards, setCompletedCards] = useState<Set<string>>(
+    new Set(initialCompletedCards ?? []),
+  );
   const [direction, setDirection] = useState(1);
   const [navOpen, setNavOpen] = useState(false);
   const [tutorOpen, setTutorOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [totalSlides, setTotalSlides] = useState(1);
+  const [checkpoint, setCheckpoint] = useState<{
+    domain: string;
+    mastery: number;
+    passed: boolean;
+    remediationCardIds: string[];
+  } | null>(null);
+  // Track quiz scores client-side so checkpoints work even without a profile
+  const [quizScores, setQuizScores] = useState<Record<string, number>>({});
+
+  const isAdaptive = learnerProfile != null && Object.keys(learnerProfile.domain_mastery).length > 0;
 
   const pageCardRef = useRef<PageCardRef>(null);
   const navRef = useRef<HTMLDivElement>(null);
@@ -67,6 +89,19 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const card = cards[currentIndex];
   const total = cards.length;
   const cardProgressPct = Math.round(((currentIndex + 1) / total) * 100);
+
+  // Compute live domain mastery from completed cards + quiz scores
+  function getLiveDomainMastery(domain: string): number {
+    // Prefer server profile if available
+    if (learnerProfile?.domain_mastery[domain] != null) {
+      return learnerProfile.domain_mastery[domain];
+    }
+    // Otherwise compute from client-side quiz scores
+    const domainCards = cards.filter((c) => c.domain === domain && (c.card_type === "quiz" || c.card_type === "scenario"));
+    const scoredCards = domainCards.filter((c) => quizScores[c.id] != null);
+    if (scoredCards.length === 0) return 0;
+    return scoredCards.reduce((sum, c) => sum + (quizScores[c.id] ?? 0), 0) / scoredCards.length;
+  }
 
   const domainGroups = cards.reduce<
     { domain: string; cards: { index: number; title: string; type: string }[] }[]
@@ -106,6 +141,31 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   function handleComplete(score?: number) {
     setCompletedCards((prev) => new Set(prev).add(card.id));
     postProgress(card.id, "completed", score);
+
+    // Track score client-side for live mastery
+    if (score != null && (card.card_type === "quiz" || card.card_type === "scenario")) {
+      setQuizScores((prev) => ({ ...prev, [card.id]: score }));
+    }
+
+    // Show mastery checkpoint after quiz/scenario completion
+    if (card.card_type === "quiz" || card.card_type === "scenario") {
+      const domain = card.domain ?? "";
+      // Use live mastery that incorporates this score
+      const updatedScores: Record<string, number> = { ...quizScores, ...(score != null ? { [card.id]: score } : {}) };
+      const domainCards = cards.filter((c: any) => c.domain === domain && (c.card_type === "quiz" || c.card_type === "scenario"));
+      const scoredCards = domainCards.filter((c: any) => updatedScores[c.id as string] != null);
+      const mastery = learnerProfile?.domain_mastery[domain]
+        ?? (scoredCards.length > 0
+          ? scoredCards.reduce((sum: number, c: any) => sum + (updatedScores[c.id as string] ?? 0), 0) / scoredCards.length
+          : 0);
+
+      const passed = score != null ? score >= (card.metadata?.pass_threshold ?? 0.7) : true;
+      const remediationCardIds = !passed
+        ? getRemediationCards(cards, card)
+        : [];
+
+      setCheckpoint({ domain, mastery, passed, remediationCardIds });
+    }
   }
 
   function handleSlideChange(slide: number, total: number) {
@@ -218,12 +278,31 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
         tutorOpen ? "lg:mr-96" : ""
       }`}>
         <div className="max-w-3xl mx-auto">
+          {/* Adaptive ordering indicator */}
+          {isAdaptive && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded-lg px-3 py-1.5">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Personalized order based on your mastery</span>
+            </div>
+          )}
+
           {/* Progress header */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">Course progress</span>
                 <span className="text-sm font-semibold text-amber-400">{cardProgressPct}%</span>
+                {/* Show current domain mastery inline */}
+                {(() => {
+                  const m = getLiveDomainMastery(card.domain ?? "");
+                  return m > 0 ? (
+                    <span className="text-xs text-gray-500">
+                      {card.domain?.split(" ")[0]}: <span className="text-gray-400 font-medium">{Math.round(m * 100)}%</span>
+                    </span>
+                  ) : null;
+                })()}
               </div>
 
               <div className="relative" ref={navRef}>
@@ -244,9 +323,17 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
                         <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm px-4 py-2 border-b border-gray-800">
                           <div className="flex items-center gap-2">
                             <span className={`w-2 h-2 rounded-full ${getDomainDotColor(group.domain)}`} />
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate flex-1">
                               {group.domain}
                             </span>
+                            {(() => {
+                              const m = getLiveDomainMastery(group.domain);
+                              return m > 0 ? (
+                                <span className="text-xs text-amber-400 font-mono shrink-0">
+                                  {Math.round(m * 100)}%
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                         {group.cards.map((c) => (
@@ -283,24 +370,52 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
             </div>
           </div>
 
+          {/* Mastery checkpoint interstitial */}
+          {checkpoint && (
+            <MasteryCheckpoint
+              domain={checkpoint.domain}
+              mastery={checkpoint.mastery}
+              passed={checkpoint.passed}
+              weakConcepts={learnerProfile?.weak_concepts?.filter((wc) =>
+                // Show weak concepts relevant to this domain
+                cards.some((cc) => cc.domain === checkpoint.domain &&
+                  (cc.title.toLowerCase().includes(wc.toLowerCase()) ||
+                   cc.body_md?.toLowerCase().includes(wc.toLowerCase())))
+              ) ?? []}
+              onContinue={() => setCheckpoint(null)}
+              onReviewWeak={() => {
+                // Jump to the first remediation page card
+                if (checkpoint.remediationCardIds.length > 0) {
+                  const targetId = checkpoint.remediationCardIds[0];
+                  const idx = cards.findIndex((c) => c.id === targetId);
+                  if (idx >= 0) jumpToCard(idx);
+                }
+                setCheckpoint(null);
+              }}
+              hasRemediationCards={checkpoint.remediationCardIds.length > 0}
+            />
+          )}
+
           {/* Card content */}
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={card.id}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="rounded-2xl border border-gray-800 bg-gray-900/80 overflow-hidden"
-            >
-              <div className={`h-1 bg-gradient-to-r ${domainGradient}`} />
-              <div className="p-5 sm:p-8">
-                {renderCard()}
-              </div>
-            </motion.div>
-          </AnimatePresence>
+          {!checkpoint && (
+            <AnimatePresence mode="wait" custom={direction}>
+              <motion.div
+                key={card.id}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="rounded-2xl border border-gray-800 bg-gray-900/80 overflow-hidden"
+              >
+                <div className={`h-1 bg-gradient-to-r ${domainGradient}`} />
+                <div className="p-5 sm:p-8">
+                  {renderCard()}
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
       </div>
 

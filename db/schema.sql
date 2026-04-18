@@ -71,6 +71,22 @@ CREATE TABLE IF NOT EXISTS content.domain_metrics (
   PRIMARY KEY (course_slug, domain)
 );
 
+CREATE TABLE IF NOT EXISTS content.card_quality (
+  card_id TEXT PRIMARY KEY REFERENCES content.cards(id),
+  llm_clarity REAL,
+  llm_accuracy REAL,
+  llm_alignment REAL,
+  llm_conciseness REAL,
+  llm_distractor_quality REAL,
+  llm_feedback JSONB,
+  human_pass_rate REAL,
+  human_skip_rate REAL,
+  human_avg_time REAL,
+  combined_score REAL,
+  feedback TEXT,
+  evaluated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Learner tables (app-writable only)
 CREATE SCHEMA IF NOT EXISTS learner;
 
