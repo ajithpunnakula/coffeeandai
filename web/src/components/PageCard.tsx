@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { splitSections } from "@/lib/split-sections";
 import SectionRenderer from "./sections/SectionRenderer";
 
@@ -28,6 +28,8 @@ export interface PageCardRef {
   currentSlide: number;
 }
 
+const SWIPE_THRESHOLD = 50;
+
 const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
   { card, onSlideChange },
   ref,
@@ -41,71 +43,69 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Reset slide index when card changes
   useEffect(() => {
     setSlideIndex(0);
     setDirection(0);
   }, [card.id]);
 
-  // Notify parent of slide changes
   useEffect(() => {
     onSlideChange?.(slideIndex, totalSlides);
   }, [slideIndex, totalSlides, onSlideChange]);
 
-  // Expose imperative methods for parent to control slides
+  const goForward = useCallback(() => {
+    if (slideIndex < totalSlides - 1) {
+      setDirection(1);
+      setSlideIndex((i) => i + 1);
+    }
+  }, [slideIndex, totalSlides]);
+
+  const goBack = useCallback(() => {
+    if (slideIndex > 0) {
+      setDirection(-1);
+      setSlideIndex((i) => i - 1);
+    }
+  }, [slideIndex]);
+
   useImperativeHandle(ref, () => ({
     canAdvanceSlide: () => slideIndex < totalSlides - 1,
     canGoBackSlide: () => slideIndex > 0,
-    advanceSlide: () => {
-      if (slideIndex < totalSlides - 1) {
-        setDirection(1);
-        setSlideIndex((i) => i + 1);
-      }
-    },
-    goBackSlide: () => {
-      if (slideIndex > 0) {
-        setDirection(-1);
-        setSlideIndex((i) => i - 1);
-      }
-    },
+    advanceSlide: goForward,
+    goBackSlide: goBack,
     goToSlide: (index: number) => {
       setDirection(index > slideIndex ? 1 : -1);
       setSlideIndex(index);
     },
     totalSlides,
     currentSlide: slideIndex,
-  }), [slideIndex, totalSlides]);
+  }), [slideIndex, totalSlides, goForward, goBack]);
 
   function toggleAudio() {
     if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
-    }
+    if (playing) audioRef.current.pause();
+    else audioRef.current.play();
     setPlaying(!playing);
+  }
+
+  // Swipe handling
+  function handleDragEnd(_: any, info: PanInfo) {
+    if (info.offset.x < -SWIPE_THRESHOLD && info.velocity.x < 0) {
+      goForward();
+    } else if (info.offset.x > SWIPE_THRESHOLD && info.velocity.x > 0) {
+      goBack();
+    }
   }
 
   const section = sections[slideIndex];
 
   const variants = {
-    enter: (dir: number) => ({
-      opacity: 0,
-      x: dir >= 0 ? 60 : -60,
-    }),
-    center: {
-      opacity: 1,
-      x: 0,
-    },
-    exit: (dir: number) => ({
-      opacity: 0,
-      x: dir >= 0 ? -60 : 60,
-    }),
+    enter: (dir: number) => ({ opacity: 0, x: dir >= 0 ? 60 : -60 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => ({ opacity: 0, x: dir >= 0 ? -60 : 60 }),
   };
 
   return (
     <div className="space-y-4">
-      {/* Header — persistent across slides */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
         <span className="shrink-0 rounded-full bg-amber-500/10 text-amber-400 px-2.5 py-0.5 text-xs font-medium">
@@ -116,11 +116,7 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
       {/* Audio */}
       {card.audio_url && (
         <>
-          <audio
-            ref={audioRef}
-            src={card.audio_url}
-            onEnded={() => setPlaying(false)}
-          />
+          <audio ref={audioRef} src={card.audio_url} onEnded={() => setPlaying(false)} />
           <button
             onClick={toggleAudio}
             className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-amber-400 transition-colors"
@@ -146,15 +142,11 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
 
       {/* Image — first slide only */}
       {card.image_url && slideIndex === 0 && (
-        <img
-          src={card.image_url}
-          alt={card.title}
-          className="w-full rounded-lg"
-        />
+        <img src={card.image_url} alt={card.title} className="w-full rounded-lg" />
       )}
 
-      {/* Slide content — no tap zones, navigation is via outer buttons */}
-      <div className="relative overflow-hidden" style={{ minHeight: 200 }}>
+      {/* Swipeable slide content */}
+      <div className="relative overflow-hidden touch-pan-y" style={{ minHeight: 200 }}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={`${card.id}-${slideIndex}`}
@@ -164,6 +156,11 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
             animate="center"
             exit="exit"
             transition={{ duration: 0.2, ease: "easeOut" }}
+            drag={isSingleSlide ? false : "x"}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.15}
+            onDragEnd={handleDragEnd}
+            style={{ cursor: isSingleSlide ? "default" : "grab" }}
           >
             <SectionRenderer section={section} />
           </motion.div>
