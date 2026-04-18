@@ -162,10 +162,38 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [goForward, goBack]);
 
+  // Called when user swipes past last slide — go to next card
+  function handleSwipePastEnd() {
+    if (currentIndex < total - 1) {
+      setDirection(1);
+      setCurrentIndex((i) => i + 1);
+      setCurrentSlide(0);
+      setTotalSlides(1);
+    }
+  }
+
+  // Called when user swipes past first slide — go to previous card
+  function handleSwipePastStart() {
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex((i) => i - 1);
+      setCurrentSlide(0);
+      setTotalSlides(1);
+    }
+  }
+
   function renderCard() {
     switch (card.card_type) {
       case "page":
-        return <PageCard ref={pageCardRef} card={card} onSlideChange={handleSlideChange} />;
+        return (
+          <PageCard
+            ref={pageCardRef}
+            card={card}
+            onSlideChange={handleSlideChange}
+            onSwipePastEnd={handleSwipePastEnd}
+            onSwipePastStart={handleSwipePastStart}
+          />
+        );
       case "quiz":
         return <QuizCard key={card.id} card={card} onComplete={(s) => handleComplete(s)} />;
       case "scenario":

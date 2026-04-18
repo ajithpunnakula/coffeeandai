@@ -16,6 +16,8 @@ interface PageCardProps {
     image_url?: string;
   };
   onSlideChange?: (slideIndex: number, totalSlides: number) => void;
+  onSwipePastEnd?: () => void;
+  onSwipePastStart?: () => void;
 }
 
 export interface PageCardRef {
@@ -31,7 +33,7 @@ export interface PageCardRef {
 const SWIPE_THRESHOLD = 50;
 
 const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
-  { card, onSlideChange },
+  { card, onSlideChange, onSwipePastEnd, onSwipePastStart },
   ref,
 ) {
   const sections = splitSections(card.body_md, card.title);
@@ -43,9 +45,15 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Reset slide index AND stop audio when card changes
   useEffect(() => {
     setSlideIndex(0);
     setDirection(0);
+    setPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
   }, [card.id]);
 
   useEffect(() => {
@@ -86,12 +94,22 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
     setPlaying(!playing);
   }
 
-  // Swipe handling
+  // Swipe — advance slides, or notify parent when swiping past boundaries
   function handleDragEnd(_: any, info: PanInfo) {
     if (info.offset.x < -SWIPE_THRESHOLD && info.velocity.x < 0) {
-      goForward();
+      if (slideIndex < totalSlides - 1) {
+        goForward();
+      } else {
+        // At last slide — notify parent to go to next card
+        onSwipePastEnd?.();
+      }
     } else if (info.offset.x > SWIPE_THRESHOLD && info.velocity.x > 0) {
-      goBack();
+      if (slideIndex > 0) {
+        goBack();
+      } else {
+        // At first slide — notify parent to go to previous card
+        onSwipePastStart?.();
+      }
     }
   }
 
@@ -156,11 +174,11 @@ const PageCard = forwardRef<PageCardRef, PageCardProps>(function PageCard(
             animate="center"
             exit="exit"
             transition={{ duration: 0.2, ease: "easeOut" }}
-            drag={isSingleSlide ? false : "x"}
+            drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.15}
             onDragEnd={handleDragEnd}
-            style={{ cursor: isSingleSlide ? "default" : "grab" }}
+            style={{ cursor: "grab" }}
           >
             <SectionRenderer section={section} />
           </motion.div>
