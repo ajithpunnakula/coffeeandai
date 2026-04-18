@@ -10,6 +10,8 @@ interface Message {
 interface TutorPanelProps {
   courseSlug: string;
   cardId: string;
+  open: boolean;
+  onToggle: () => void;
 }
 
 const SUGGESTED_STARTERS = [
@@ -19,8 +21,7 @@ const SUGGESTED_STARTERS = [
   "Why does this matter?",
 ];
 
-export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
-  const [open, setOpen] = useState(false);
+export default function TutorPanel({ courseSlug, cardId, open, onToggle }: TutorPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -35,19 +36,18 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
     }
   }, [cardId]);
 
-  // Close on click outside (mobile/tablet only — desktop panel stays open)
+  // Close on click outside (mobile only)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        // Only auto-close on smaller screens
-        if (window.innerWidth < 1024) setOpen(false);
+      if (!panelRef.current?.contains(e.target as Node) && window.innerWidth < 1024) {
+        onToggle();
       }
     }
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [open]);
+  }, [open, onToggle]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,9 +69,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "Request failed" }));
         setMessages((prev) => {
-          const u = [...prev];
-          u[u.length - 1] = { role: "assistant", content: err.error ?? "Something went wrong." };
-          return u;
+          const u = [...prev]; u[u.length - 1] = { role: "assistant", content: err.error ?? "Something went wrong." }; return u;
         });
         setStreaming(false);
         return;
@@ -86,17 +84,13 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
         accumulated += decoder.decode(value, { stream: true });
         const snapshot = accumulated;
         setMessages((prev) => {
-          const u = [...prev];
-          u[u.length - 1] = { role: "assistant", content: snapshot };
-          return u;
+          const u = [...prev]; u[u.length - 1] = { role: "assistant", content: snapshot }; return u;
         });
         scrollToBottom();
       }
     } catch {
       setMessages((prev) => {
-        const u = [...prev];
-        u[u.length - 1] = { role: "assistant", content: "Connection error. Please try again." };
-        return u;
+        const u = [...prev]; u[u.length - 1] = { role: "assistant", content: "Connection error." }; return u;
       });
     } finally {
       setStreaming(false);
@@ -110,24 +104,18 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
 
   const chatContent = (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
           <h3 className="font-semibold text-gray-100 text-sm">AI Tutor</h3>
         </div>
-        <button
-          onClick={() => setOpen(false)}
-          className="text-gray-500 hover:text-gray-300 transition-colors lg:hidden"
-          aria-label="Close tutor"
-        >
+        <button onClick={onToggle} className="text-gray-500 hover:text-gray-300 transition-colors" aria-label="Close tutor">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
           <div className="space-y-4 mt-4">
@@ -136,12 +124,8 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
             </div>
             <div className="flex flex-wrap gap-2 justify-center">
               {SUGGESTED_STARTERS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  disabled={streaming}
-                  className="text-xs bg-gray-800 text-gray-400 hover:text-amber-400 hover:bg-gray-700 rounded-full px-3 py-1.5 transition-colors disabled:opacity-50"
-                >
+                <button key={s} onClick={() => sendMessage(s)} disabled={streaming}
+                  className="text-xs bg-gray-800 text-gray-400 hover:text-amber-400 hover:bg-gray-700 rounded-full px-3 py-1.5 transition-colors disabled:opacity-50">
                   {s}
                 </button>
               ))}
@@ -151,9 +135,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
         {messages.map((msg, i) => (
           <div key={i} className={`text-sm ${msg.role === "user" ? "text-right" : "text-left"}`}>
             <span className={`inline-block px-3 py-2 rounded-xl max-w-[85%] whitespace-pre-wrap ${
-              msg.role === "user"
-                ? "bg-amber-600 text-white rounded-br-sm"
-                : "bg-gray-800 text-gray-200 rounded-bl-sm"
+              msg.role === "user" ? "bg-amber-600 text-white rounded-br-sm" : "bg-gray-800 text-gray-200 rounded-bl-sm"
             }`}>
               {msg.content || (streaming && i === messages.length - 1 ? "..." : "")}
             </span>
@@ -162,22 +144,12 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="border-t border-gray-800 px-4 py-3 flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask the tutor..."
-          disabled={streaming}
-          className="flex-1 text-sm bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 disabled:opacity-50"
-        />
-        <button
-          onClick={() => sendMessage(input)}
-          disabled={streaming || !input.trim()}
-          className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm rounded-xl hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
+      <div className="border-t border-gray-800 px-4 py-3 flex gap-2 shrink-0">
+        <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+          placeholder="Ask the tutor..." disabled={streaming}
+          className="flex-1 text-sm bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 disabled:opacity-50" />
+        <button onClick={() => sendMessage(input)} disabled={streaming || !input.trim()}
+          className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm rounded-xl hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
           Send
         </button>
       </div>
@@ -186,13 +158,11 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
 
   return (
     <div ref={panelRef}>
-      {/* Orange FAB */}
+      {/* Orange FAB — hidden on desktop when panel is open */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={onToggle}
         className={`fixed bottom-6 right-6 z-50 rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all hover:scale-105 ${
-          open
-            ? "bg-gray-800 shadow-black/30"
-            : "bg-gradient-to-r from-amber-500 to-orange-600 shadow-amber-500/20 hover:from-amber-400 hover:to-orange-500"
+          open ? "lg:hidden bg-gray-800 shadow-black/30" : "bg-gradient-to-r from-amber-500 to-orange-600 shadow-amber-500/20 hover:from-amber-400 hover:to-orange-500"
         }`}
         aria-label={open ? "Close AI Tutor" : "Open AI Tutor"}
       >
@@ -207,16 +177,15 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
         )}
       </button>
 
-      {/* Chat panel — mobile: floating above FAB, desktop: side panel on right */}
       {open && (
         <>
-          {/* Mobile/tablet: floating panel */}
+          {/* Mobile/tablet: floating panel above FAB */}
           <div className="fixed z-50 bottom-24 right-4 left-4 sm:left-auto sm:w-96 max-h-[60vh] bg-gray-900 rounded-2xl shadow-2xl shadow-black/50 border border-gray-700 flex flex-col lg:hidden">
             {chatContent}
           </div>
 
-          {/* Desktop: side panel pinned to right edge */}
-          <div className="hidden lg:flex fixed z-40 top-16 right-0 bottom-0 w-96 bg-gray-900 border-l border-gray-800 flex-col shadow-2xl shadow-black/30">
+          {/* Desktop: side panel — content area shifts via lg:mr-96 in CardPlayer */}
+          <div className="hidden lg:flex fixed z-40 top-16 right-0 bottom-0 w-96 bg-gray-900 border-l border-gray-800 flex-col">
             {chatContent}
           </div>
         </>
