@@ -57,6 +57,7 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [direction, setDirection] = useState(1);
   const [navOpen, setNavOpen] = useState(false);
+  const [tutorOpen, setTutorOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [totalSlides, setTotalSlides] = useState(1);
 
@@ -148,7 +149,24 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     setNavOpen(false);
   }
 
-  // Keyboard navigation
+  function handleSwipePastEnd() {
+    if (currentIndex < total - 1) {
+      setDirection(1);
+      setCurrentIndex((i) => i + 1);
+      setCurrentSlide(0);
+      setTotalSlides(1);
+    }
+  }
+
+  function handleSwipePastStart() {
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex((i) => i - 1);
+      setCurrentSlide(0);
+      setTotalSlides(1);
+    }
+  }
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement).tagName;
@@ -161,26 +179,6 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [goForward, goBack]);
-
-  // Called when user swipes past last slide — go to next card
-  function handleSwipePastEnd() {
-    if (currentIndex < total - 1) {
-      setDirection(1);
-      setCurrentIndex((i) => i + 1);
-      setCurrentSlide(0);
-      setTotalSlides(1);
-    }
-  }
-
-  // Called when user swipes past first slide — go to previous card
-  function handleSwipePastStart() {
-    if (currentIndex > 0) {
-      setDirection(-1);
-      setCurrentIndex((i) => i - 1);
-      setCurrentSlide(0);
-      setTotalSlides(1);
-    }
-  }
 
   function renderCard() {
     switch (card.card_type) {
@@ -215,97 +213,105 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto pt-6 px-4 pb-8">
-        {/* Progress header */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500">Course progress</span>
-              <span className="text-sm font-semibold text-amber-400">{cardProgressPct}%</span>
-            </div>
+      {/* Main content — shifts left when tutor side panel is open on desktop */}
+      <div className={`pt-6 px-4 pb-8 transition-all duration-300 ${
+        tutorOpen ? "lg:mr-96" : ""
+      }`}>
+        <div className="max-w-3xl mx-auto">
+          {/* Progress header */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">Course progress</span>
+                <span className="text-sm font-semibold text-amber-400">{cardProgressPct}%</span>
+              </div>
 
-            <div className="relative" ref={navRef}>
-              <button
-                onClick={() => setNavOpen(!navOpen)}
-                className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 bg-gray-800/50 hover:bg-gray-800 rounded-lg px-3 py-1.5 transition-colors"
-              >
-                <span>Card {currentIndex + 1}/{total}</span>
-                <svg className={`w-3.5 h-3.5 transition-transform ${navOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+              <div className="relative" ref={navRef}>
+                <button
+                  onClick={() => setNavOpen(!navOpen)}
+                  className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 bg-gray-800/50 hover:bg-gray-800 rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  <span>Card {currentIndex + 1}/{total}</span>
+                  <svg className={`w-3.5 h-3.5 transition-transform ${navOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-              {navOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl shadow-black/50 z-50">
-                  {domainGroups.map((group) => (
-                    <div key={group.domain}>
-                      <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm px-4 py-2 border-b border-gray-800">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getDomainDotColor(group.domain)}`} />
-                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
-                            {group.domain}
-                          </span>
+                {navOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl shadow-black/50 z-50">
+                    {domainGroups.map((group) => (
+                      <div key={group.domain}>
+                        <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm px-4 py-2 border-b border-gray-800">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${getDomainDotColor(group.domain)}`} />
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+                              {group.domain}
+                            </span>
+                          </div>
                         </div>
+                        {group.cards.map((c) => (
+                          <button
+                            key={c.index}
+                            onClick={() => jumpToCard(c.index)}
+                            className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors ${
+                              c.index === currentIndex
+                                ? "bg-amber-500/10 text-amber-400"
+                                : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                            }`}
+                          >
+                            <span className="text-xs shrink-0">{CARD_TYPE_ICONS[c.type] ?? "📄"}</span>
+                            <span className="truncate">{c.title}</span>
+                            {completedCards.has(cards[c.index].id) && (
+                              <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
                       </div>
-                      {group.cards.map((c) => (
-                        <button
-                          key={c.index}
-                          onClick={() => jumpToCard(c.index)}
-                          className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors ${
-                            c.index === currentIndex
-                              ? "bg-amber-500/10 text-amber-400"
-                              : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-                          }`}
-                        >
-                          <span className="text-xs shrink-0">{CARD_TYPE_ICONS[c.type] ?? "📄"}</span>
-                          <span className="truncate">{c.title}</span>
-                          {completedCards.has(cards[c.index].id) && (
-                            <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r ${domainGradient} transition-all duration-500`}
+                style={{ width: `${cardProgressPct}%` }}
+              />
             </div>
           </div>
 
-          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${domainGradient} transition-all duration-500`}
-              style={{ width: `${cardProgressPct}%` }}
-            />
-          </div>
+          {/* Card content */}
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={card.id}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="rounded-2xl border border-gray-800 bg-gray-900/80 overflow-hidden"
+            >
+              <div className={`h-1 bg-gradient-to-r ${domainGradient}`} />
+              <div className="p-5 sm:p-8">
+                {renderCard()}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
-
-        {/* Card content */}
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={card.id}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="rounded-2xl border border-gray-800 bg-gray-900/80 overflow-hidden"
-          >
-            <div className={`h-1 bg-gradient-to-r ${domainGradient}`} />
-            <div className="p-5 sm:p-8">
-              {renderCard()}
-            </div>
-          </motion.div>
-        </AnimatePresence>
       </div>
 
-      {/* One-time navigation hint */}
       <NavHint />
 
-      {/* Floating AI Tutor */}
-      <TutorPanel courseSlug={courseSlug} cardId={card.id} />
+      <TutorPanel
+        courseSlug={courseSlug}
+        cardId={card.id}
+        open={tutorOpen}
+        onToggle={() => setTutorOpen(!tutorOpen)}
+      />
     </>
   );
 }
