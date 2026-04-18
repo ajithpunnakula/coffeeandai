@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface Choice {
   text: string;
   correct: boolean;
@@ -21,11 +23,13 @@ interface QuizCardEditorProps {
       pass_threshold: number;
     };
   };
+  preview: boolean;
   onChange: (fields: Record<string, any>) => void;
 }
 
 export default function QuizCardEditor({
   card,
+  preview,
   onChange,
 }: QuizCardEditorProps) {
   const { questions, pass_threshold } = card.metadata;
@@ -87,6 +91,74 @@ export default function QuizCardEditor({
   function removeChoice(qIdx: number, cIdx: number) {
     const newChoices = questions[qIdx].choices.filter((_, i) => i !== cIdx);
     updateQuestion(qIdx, { choices: newChoices });
+  }
+
+  const [previewQ, setPreviewQ] = useState(0);
+  const [previewSelected, setPreviewSelected] = useState<number | null>(null);
+
+  if (preview) {
+    const question = questions[previewQ];
+    if (!question) return null;
+    const correctIndex = question.choices.findIndex((c) => c.correct);
+    const isCorrect = previewSelected === correctIndex;
+
+    return (
+      <div className="space-y-4 p-4 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
+          <span className="text-sm text-gray-500 bg-gray-800 rounded-full px-2.5 py-0.5">
+            {previewQ + 1} / {questions.length}
+          </span>
+        </div>
+        <p className="font-medium text-gray-200">{question.prompt}</p>
+        <div className="space-y-2">
+          {question.choices.map((choice, idx) => {
+            let style =
+              "border-gray-700 hover:border-gray-600 hover:bg-gray-800/50 text-gray-300";
+            if (previewSelected !== null) {
+              if (choice.correct) {
+                style = "border-emerald-500/50 bg-emerald-500/10 text-emerald-300";
+              } else if (idx === previewSelected) {
+                style = "border-red-500/50 bg-red-500/10 text-red-300";
+              } else {
+                style = "border-gray-800 text-gray-500";
+              }
+            }
+            return (
+              <button
+                key={idx}
+                onClick={() => previewSelected === null && setPreviewSelected(idx)}
+                disabled={previewSelected !== null}
+                className={`w-full text-left px-4 py-3 rounded-xl border ${style} disabled:cursor-default transition-colors text-sm`}
+              >
+                {choice.text}
+              </button>
+            );
+          })}
+        </div>
+        {previewSelected !== null && !isCorrect && question.choices[previewSelected]?.misconception && (
+          <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+            {question.choices[previewSelected].misconception}
+          </p>
+        )}
+        {previewSelected !== null && (
+          <button
+            onClick={() => {
+              if (previewQ + 1 < questions.length) {
+                setPreviewQ((i) => i + 1);
+                setPreviewSelected(null);
+              } else {
+                setPreviewQ(0);
+                setPreviewSelected(null);
+              }
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:from-amber-400 hover:to-orange-500 transition-all text-sm font-medium"
+          >
+            {previewQ + 1 < questions.length ? "Next Question" : "Restart"}
+          </button>
+        )}
+      </div>
+    );
   }
 
   return (
