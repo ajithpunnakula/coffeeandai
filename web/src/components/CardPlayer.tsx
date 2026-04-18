@@ -237,29 +237,31 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <button
-          onClick={goPrev}
-          disabled={currentIndex === 0}
-          className="inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[120px] justify-center"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Previous
-        </button>
-        <button
-          onClick={goNext}
-          disabled={!canGoNext}
-          className={`inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none min-w-[120px] justify-center bg-gradient-to-r ${domainGradient}`}
-        >
-          {CARD_TYPE_LABELS[card.card_type] ?? "Next"}
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+      {/* Navigation — hide during active quiz/scenario/reflection until completed */}
+      {(card.card_type === "page" || completedCards.has(card.id)) && (
+        <div className="flex justify-between mt-6">
+          <button
+            onClick={goPrev}
+            disabled={currentIndex === 0}
+            className="inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors min-w-[120px] justify-center"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Previous
+          </button>
+          <button
+            onClick={goNext}
+            disabled={!canGoNext}
+            className={`inline-flex items-center gap-1 px-5 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none min-w-[120px] justify-center bg-gradient-to-r ${domainGradient}`}
+          >
+            {completedCards.has(card.id) ? "Next" : "Continue"}
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* AI Tutor */}
       <TutorPanel courseSlug={courseSlug} cardId={card.id} />
