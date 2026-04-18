@@ -77,5 +77,58 @@ export async function GET(req: Request) {
       updated_at = now()
   `;
 
+  // Merge LLM quality scores with human metrics into card_quality
+  // LLM scores come from eval-report.json via publish or manual import.
+  // Human signals come from card_metrics computed above.
+  // Combined score = 0.6 * avg(LLM scores) + 0.4 * human_signal_score
+  await sql`
+    INSERT INTO content.card_quality (
+      card_id, human_pass_rate, human_skip_rate, human_avg_time,
+      combined_score, feedback, evaluated_at
+    )
+    SELECT
+      cm.card_id,
+      cm.pass_rate,
+      cm.skip_rate,
+      cm.avg_time_seconds,
+      -- combined_score: blend existing LLM avg with human signal
+      CASE
+        WHEN cq.llm_clarity IS NOT NULL THEN
+          0.6 * (
+            COALESCE(cq.llm_clarity, 5) +
+            COALESCE(cq.llm_accuracy, 5) +
+            COALESCE(cq.llm_alignment, 5) +
+            COALESCE(cq.llm_conciseness, 5)
+          ) / 4.0
+          + 0.4 * (
+            -- Human signal: pass_rate * 10, penalize high skip and low time
+            GREATEST(0, LEAST(10,
+              COALESCE(cm.pass_rate, 0.5) * 10
+              - CASE WHEN cm.skip_rate > 0.2 THEN 2 ELSE 0 END
+              - CASE WHEN cm.avg_time_seconds < 5 THEN 2 ELSE 0 END
+            ))
+          )
+        ELSE NULL
+      END,
+      -- feedback: auto-generate flag reason
+      CASE
+        WHEN cm.pass_rate < 0.30 THEN 'Low pass rate — consider simplifying or rewriting'
+        WHEN cm.skip_rate > 0.20 THEN 'High skip rate — card may be disengaging'
+        WHEN cm.avg_time_seconds < 5 THEN 'Very low time spent — card may be too shallow'
+        ELSE NULL
+      END,
+      now()
+    FROM content.card_metrics cm
+    LEFT JOIN content.card_quality cq ON cq.card_id = cm.card_id
+    WHERE cm.attempts > 0
+    ON CONFLICT (card_id) DO UPDATE SET
+      human_pass_rate = EXCLUDED.human_pass_rate,
+      human_skip_rate = EXCLUDED.human_skip_rate,
+      human_avg_time = EXCLUDED.human_avg_time,
+      combined_score = EXCLUDED.combined_score,
+      feedback = EXCLUDED.feedback,
+      evaluated_at = EXCLUDED.evaluated_at
+  `;
+
   return NextResponse.json({ ok: true });
 }

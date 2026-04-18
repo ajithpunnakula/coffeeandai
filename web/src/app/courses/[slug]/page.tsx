@@ -36,6 +36,7 @@ export default async function CourseOverviewPage({
 
   let enrollment = null;
   let progress = null;
+  let hasProfile = false;
   if (userId) {
     const enrollRows = await sql`
       SELECT e.user_id FROM learner.enrollments e
@@ -46,14 +47,23 @@ export default async function CourseOverviewPage({
     enrollment = enrollRows[0] ?? null;
 
     if (enrollment) {
-      const progressRows = await sql`
-        SELECT count(*) FILTER (WHERE cp.status = 'completed') AS completed,
-               count(*) AS total
-        FROM content.cards c
-        LEFT JOIN learner.card_progress cp ON cp.card_id = c.id AND cp.user_id = ${enrollment.user_id}
-        WHERE c.course_slug = ${slug}
-      `;
+      const [progressRows, profileRows] = await Promise.all([
+        sql`
+          SELECT count(*) FILTER (WHERE cp.status = 'completed') AS completed,
+                 count(*) AS total
+          FROM content.cards c
+          LEFT JOIN learner.card_progress cp ON cp.card_id = c.id AND cp.user_id = ${enrollment.user_id}
+          WHERE c.course_slug = ${slug}
+        `,
+        sql`
+          SELECT 1 FROM learner.profiles
+          WHERE user_id = ${enrollment.user_id} AND course_slug = ${slug}
+            AND weak_concepts IS NOT NULL AND array_length(weak_concepts, 1) > 0
+          LIMIT 1
+        `,
+      ]);
       progress = progressRows[0];
+      hasProfile = profileRows.length > 0;
     }
   }
 
@@ -200,6 +210,22 @@ export default async function CourseOverviewPage({
                   >
                     Continue Learning
                   </Link>
+                  {hasProfile && (
+                    <Link
+                      href={`/courses/${slug}/practice`}
+                      className="block w-full text-center py-3 mt-3 rounded-xl font-semibold border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 transition-all text-sm"
+                    >
+                      Practice Weak Areas
+                    </Link>
+                  )}
+                  {progressPct > 0 && (
+                    <Link
+                      href={`/courses/${slug}/dashboard`}
+                      className="block w-full text-center py-2.5 mt-2 text-sm text-gray-500 hover:text-amber-400 transition-colors"
+                    >
+                      View Dashboard
+                    </Link>
+                  )}
                 </>
               ) : (
                 <>
