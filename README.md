@@ -35,7 +35,7 @@ The first application built on the platform. CoffeeAndAI generates personalized 
 - Domain-weighted scoring aligned with the actual exam
 - Personalized tutoring that adapts to each learner's profile
 
-Try it at [coffeeand.ai](https://coffeeand.ai).
+Try it at [coffeeandai.xyz](https://coffeeandai.xyz).
 
 ## Skills
 
