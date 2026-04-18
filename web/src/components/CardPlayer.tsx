@@ -6,6 +6,7 @@ import PageCard from "./PageCard";
 import QuizCard from "./QuizCard";
 import ScenarioCard from "./ScenarioCard";
 import ReflectionCard from "./ReflectionCard";
+import TutorPanel from "./TutorPanel";
 
 interface CardPlayerProps {
   cards: any[];
@@ -81,20 +82,22 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
     }
   }
 
+  const progressPct = Math.round(((currentIndex + 1) / total) * 100);
+
   return (
-    <div className="max-w-2xl mx-auto py-8 px-4">
+    <div className="max-w-3xl mx-auto py-8 px-4">
       {/* Progress bar */}
       <div className="mb-6">
-        <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1">
-          <span>
+        <div className="flex justify-between text-xs text-gray-500 mb-2">
+          <span className="font-medium text-gray-400">
             Card {currentIndex + 1} of {total}
           </span>
-          <span>{Math.round(((currentIndex + 1) / total) * 100)}%</span>
+          <span className="text-amber-400 font-semibold">{progressPct}%</span>
         </div>
-        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-600 transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / total) * 100}%` }}
+            className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
@@ -103,11 +106,11 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
       <AnimatePresence mode="wait">
         <motion.div
           key={card.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
-          className="bg-white dark:bg-gray-900 rounded-xl shadow dark:shadow-gray-800 p-6"
+          className="rounded-2xl border border-gray-800 bg-gray-900/80 p-6 sm:p-8 overflow-hidden"
         >
           {renderCard()}
         </motion.div>
@@ -118,18 +121,27 @@ export default function CardPlayer({ cards, courseSlug }: CardPlayerProps) {
         <button
           onClick={() => setCurrentIndex((i) => i - 1)}
           disabled={currentIndex === 0}
-          className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
           Previous
         </button>
         <button
           onClick={() => setCurrentIndex((i) => i + 1)}
           disabled={!canGoNext}
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-amber-500/10 disabled:shadow-none"
         >
           Next
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </button>
       </div>
+
+      {/* AI Tutor */}
+      <TutorPanel courseSlug={courseSlug} cardId={card.id} />
     </div>
   );
 }

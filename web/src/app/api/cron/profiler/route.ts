@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!ANTHROPIC_API_KEY) {
+  if (!OPENAI_API_KEY) {
     return NextResponse.json(
       { error: "Profiler not configured" },
       { status: 503 },
@@ -126,7 +126,7 @@ async function updateProfile(
     .map(([domain, count]) => `${domain}: ${count} attempts`)
     .join("\n");
 
-  // 3. Call Claude Haiku
+  // 3. Call OpenAI
   const prompt = `Analyze this learner's performance data and return JSON only (no markdown, no explanation):
 {
   "domain_mastery": {"Domain Name": 0.85, ...},
@@ -144,15 +144,14 @@ ${misconceptions || "None"}
 - Attempt patterns:
 ${attemptSummary || "No attempt data"}`;
 
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      "x-api-key": ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
+      model: "gpt-4o-mini",
       max_tokens: 1000,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -160,12 +159,11 @@ ${attemptSummary || "No attempt data"}`;
 
   if (!resp.ok) {
     const errBody = await resp.text();
-    throw new Error(`Anthropic API error: ${resp.status} ${errBody}`);
+    throw new Error(`OpenAI API error: ${resp.status} ${errBody}`);
   }
 
   const result = await resp.json();
-  const text =
-    result.content?.[0]?.type === "text" ? result.content[0].text : "";
+  const text = result.choices?.[0]?.message?.content ?? "";
 
   // Parse JSON from response
   const jsonMatch = text.match(/\{[\s\S]*\}/);

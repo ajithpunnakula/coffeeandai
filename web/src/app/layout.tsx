@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LLM Wiki",
-  description: "Card-based certification training courses",
+  title: "Coffee & AI",
+  description: "Master AI certifications with interactive, card-based courses",
 };
 
 export default function RootLayout({

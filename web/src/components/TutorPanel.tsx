@@ -32,7 +32,6 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
     setInput("");
     setStreaming(true);
 
-    // Add placeholder for assistant response
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
@@ -107,8 +106,8 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors"
-        aria-label="Open tutor"
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg shadow-amber-500/20 hover:from-amber-400 hover:to-orange-500 transition-all hover:scale-105 z-50"
+        aria-label="Ask AI Tutor"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -129,13 +128,16 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-96 max-h-[32rem] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col z-50">
+    <div className="fixed bottom-6 right-6 w-96 max-h-[32rem] bg-gray-900 rounded-2xl shadow-2xl shadow-black/50 border border-gray-700 flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h3 className="font-semibold text-gray-800 text-sm">AI Tutor</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900/90 rounded-t-2xl">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <h3 className="font-semibold text-gray-100 text-sm">AI Tutor</h3>
+        </div>
         <button
           onClick={() => setOpen(false)}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-gray-500 hover:text-gray-300 transition-colors"
           aria-label="Close tutor"
         >
           <svg
@@ -158,24 +160,26 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[12rem]">
         {messages.length === 0 && (
-          <p className="text-sm text-gray-400 text-center mt-8">
-            Ask a question about this card.
-          </p>
+          <div className="text-center mt-8 space-y-2">
+            <div className="text-2xl">🤖</div>
+            <p className="text-sm text-gray-500">
+              Ask a question about this card.
+            </p>
+            <p className="text-xs text-gray-600">
+              I&apos;ll guide you through it, not just give the answer.
+            </p>
+          </div>
         )}
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`text-sm ${
-              msg.role === "user"
-                ? "text-right"
-                : "text-left"
-            }`}
+            className={`text-sm ${msg.role === "user" ? "text-right" : "text-left"}`}
           >
             <span
-              className={`inline-block px-3 py-2 rounded-lg max-w-[85%] whitespace-pre-wrap ${
+              className={`inline-block px-3 py-2 rounded-xl max-w-[85%] whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-amber-600 text-white rounded-br-sm"
+                  : "bg-gray-800 text-gray-200 rounded-bl-sm"
               }`}
             >
               {msg.content || (streaming && i === messages.length - 1 ? "..." : "")}
@@ -186,7 +190,7 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 px-4 py-3 flex gap-2">
+      <div className="border-t border-gray-800 px-4 py-3 flex gap-2">
         <input
           type="text"
           value={input}
@@ -194,12 +198,12 @@ export default function TutorPanel({ courseSlug, cardId }: TutorPanelProps) {
           onKeyDown={handleKeyDown}
           placeholder="Ask the tutor..."
           disabled={streaming}
-          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          className="flex-1 text-sm bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 disabled:opacity-50"
         />
         <button
           onClick={handleSend}
           disabled={streaming || !input.trim()}
-          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm rounded-xl hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           Send
         </button>

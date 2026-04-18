@@ -39,17 +39,19 @@ export default async function ResultsPage({
 
   if (!completion) {
     return (
-      <main className="max-w-2xl mx-auto py-12 px-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">No Results Yet</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          You haven&apos;t completed this course yet.
-        </p>
-        <Link
-          href={`/courses/${slug}`}
-          className="text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          Back to Course
-        </Link>
+      <main className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-100 mb-4">No Results Yet</h1>
+          <p className="text-gray-400 mb-6">
+            You haven&apos;t completed this course yet.
+          </p>
+          <Link
+            href={`/courses/${slug}`}
+            className="text-amber-400 hover:text-amber-300 transition-colors"
+          >
+            Back to Course
+          </Link>
+        </div>
       </main>
     );
   }
@@ -59,20 +61,22 @@ export default async function ResultsPage({
 
   return (
     <main className="max-w-2xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-2">{course.title}</h1>
-      <h2 className="text-xl mb-6 text-gray-600 dark:text-gray-400">Results</h2>
+      <h1 className="text-3xl font-bold text-gray-100 mb-2">{course.title}</h1>
+      <h2 className="text-lg mb-8 text-gray-500">Results</h2>
 
       <div
-        className={`rounded-xl p-8 text-center mb-8 ${
-          passed ? "bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800"
+        className={`rounded-2xl p-8 text-center mb-8 border ${
+          passed
+            ? "bg-emerald-500/5 border-emerald-500/20"
+            : "bg-red-500/5 border-red-500/20"
         }`}
       >
-        <p className="text-5xl font-bold mb-2">
+        <p className="text-5xl font-bold text-gray-100 mb-2">
           {Math.round(completion.score)}%
         </p>
         <p
           className={`text-lg font-semibold ${
-            passed ? "text-green-700" : "text-red-700"
+            passed ? "text-emerald-400" : "text-red-400"
           }`}
         >
           {passed ? "PASSED" : "NOT PASSED"}
@@ -81,19 +85,19 @@ export default async function ResultsPage({
 
       {Object.keys(domainScores).length > 0 && (
         <section className="mb-8">
-          <h3 className="text-lg font-semibold mb-3">Domain Breakdown</h3>
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">Domain Breakdown</h3>
           <div className="space-y-3">
             {Object.entries(domainScores).map(([domain, score]) => (
               <div key={domain}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-700 dark:text-gray-300">{domain}</span>
-                  <span className="font-medium">{Math.round(score)}%</span>
+                <div className="flex justify-between text-sm mb-1.5">
+                  <span className="text-gray-300">{domain}</span>
+                  <span className="font-medium text-gray-200">{Math.round(score)}%</span>
                 </div>
-                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full ${
                       score >= course.pass_threshold
-                        ? "bg-green-500"
+                        ? "bg-emerald-500"
                         : "bg-red-400"
                     }`}
                     style={{ width: `${score}%` }}
@@ -106,11 +110,11 @@ export default async function ResultsPage({
       )}
 
       {passed && completion.certificate_hash && (
-        <section className="mb-8 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-          <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+        <section className="mb-8 p-4 bg-gray-800/30 border border-gray-800 rounded-xl">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
             Certificate Hash
           </h3>
-          <p className="font-mono text-sm break-all">
+          <p className="font-mono text-sm text-gray-400 break-all">
             {completion.certificate_hash}
           </p>
         </section>
@@ -118,7 +122,7 @@ export default async function ResultsPage({
 
       <Link
         href="/courses"
-        className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
+        className="inline-block bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-amber-400 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/10"
       >
         Back to Courses
       </Link>

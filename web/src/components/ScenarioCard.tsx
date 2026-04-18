@@ -59,12 +59,12 @@ export default function ScenarioCard({ card, onComplete }: ScenarioCardProps) {
     const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">{card.title}</h2>
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p className="font-medium">Outcome</p>
-          <p className="mt-1">{step.outcome}</p>
+        <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
+        <div className="p-4 bg-gray-800/50 border border-gray-700 rounded-xl">
+          <p className="font-medium text-amber-400 text-sm mb-1">Outcome</p>
+          <p className="text-gray-200">{step.outcome}</p>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-500">
           Path score: {(Math.round(avg * 100) / 100).toFixed(2)}
         </p>
       </div>
@@ -73,14 +73,14 @@ export default function ScenarioCard({ card, onComplete }: ScenarioCardProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold">{card.title}</h2>
-      <p>{step.situation}</p>
+      <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
+      <p className="text-gray-300">{step.situation}</p>
       <div className="space-y-2">
         {step.choices?.map((choice, idx) => (
           <button
             key={idx}
             onClick={() => handleChoice(choice)}
-            className="w-full text-left px-4 py-2 rounded border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="w-full text-left px-4 py-3 rounded-xl border border-gray-700 hover:border-amber-500/50 hover:bg-amber-500/5 text-gray-300 hover:text-gray-100 transition-colors text-sm"
           >
             {choice.text}
           </button>
