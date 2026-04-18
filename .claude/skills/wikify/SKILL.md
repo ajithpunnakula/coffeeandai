@@ -1,6 +1,6 @@
 ---
-name: ingest
-description: Ingest new raw sources into the wiki — auto-detects unprocessed files or accepts a specific path
+name: wikify
+description: Process raw sources into wiki pages — creates summaries, entities, and concept pages
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
