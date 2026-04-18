@@ -82,6 +82,9 @@ export default function PageCard({ card, onSlideChange }: PageCardProps) {
   // Tap zones: left 40% goes back, right 60% goes forward
   function handleTap(e: React.MouseEvent) {
     if (isSingleSlide) return;
+    // Don't navigate when clicking interactive elements inside sections
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, pre, code, input, textarea, select")) return;
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = e.clientX - rect.left;
