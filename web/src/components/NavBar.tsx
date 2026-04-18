@@ -7,10 +7,10 @@ async function getUserStats(clerkId: string) {
   try {
     const sql = neon(process.env.DATABASE_URL!);
     const rows = await sql`
-      SELECT total_xp, current_streak, longest_streak, last_activity_date
+      SELECT total_xp, current_streak, longest_streak, last_activity_date, role
       FROM learner.users WHERE clerk_id = ${clerkId}
     `;
-    if (rows.length === 0) return { streak: 0, xp: 0 };
+    if (rows.length === 0) return { streak: 0, xp: 0, role: null };
     const user = rows[0];
 
     // Check if streak is still valid
@@ -24,9 +24,9 @@ async function getUserStats(clerkId: string) {
       if (diff > 1) streak = 0;
     }
 
-    return { streak, xp: user.total_xp ?? 0 };
+    return { streak, xp: user.total_xp ?? 0, role: user.role ?? null };
   } catch {
-    return { streak: 0, xp: 0 };
+    return { streak: 0, xp: 0, role: null };
   }
 }
 
@@ -79,6 +79,14 @@ export default async function NavBar() {
                 </span>
               </Link>
             </>
+          )}
+          {stats && (stats.role === "admin" || stats.role === "developer") && (
+            <Link
+              href="/developer"
+              className="text-sm font-medium text-gray-400 hover:text-amber-400 transition-colors"
+            >
+              Developer
+            </Link>
           )}
           {userId ? (
             <UserButton />
