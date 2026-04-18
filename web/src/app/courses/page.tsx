@@ -35,6 +35,27 @@ export default async function CoursesPage() {
     ORDER BY c.published_at DESC
   `;
 
+  // Social proof: enrollment counts and pass rates per course
+  const socialRows = await sql`
+    SELECT
+      e.course_slug,
+      COUNT(DISTINCT e.user_id)::int AS enrolled_count,
+      COUNT(DISTINCT c.id) FILTER (WHERE c.passed = true)::int AS pass_count,
+      COUNT(DISTINCT c.id)::int AS completion_count
+    FROM learner.enrollments e
+    LEFT JOIN learner.completions c ON c.course_slug = e.course_slug AND c.user_id = e.user_id
+    GROUP BY e.course_slug
+  `;
+  const socialMap: Record<string, { enrolled: number; passRate: number | null }> = {};
+  for (const row of socialRows) {
+    socialMap[row.course_slug] = {
+      enrolled: Number(row.enrolled_count),
+      passRate: Number(row.completion_count) > 0
+        ? Math.round((Number(row.pass_count) / Number(row.completion_count)) * 100)
+        : null,
+    };
+  }
+
   let enrolledSlugs = new Set<string>();
   let progressMap: Record<string, { completed: number; total: number }> = {};
   if (userId) {
@@ -116,6 +137,7 @@ export default async function CoursesPage() {
               progress && progress.total > 0
                 ? Math.round((progress.completed / progress.total) * 100)
                 : 0;
+            const social = socialMap[String(course.slug)];
 
             return (
               <Link
@@ -158,12 +180,22 @@ export default async function CoursesPage() {
 
                   <div className="mt-auto">
                     {/* Stats row */}
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-4">
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-4 flex-wrap">
                       <span>{course.card_count} cards</span>
                       <span className="w-1 h-1 rounded-full bg-gray-700" />
                       <span>{course.estimated_minutes} min</span>
-                      <span className="w-1 h-1 rounded-full bg-gray-700" />
-                      <span>Pass: {Math.round(Number(course.pass_threshold) * 100)}%</span>
+                      {social && social.enrolled > 0 && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-gray-700" />
+                          <span>{social.enrolled} enrolled</span>
+                        </>
+                      )}
+                      {social && social.passRate != null && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-gray-700" />
+                          <span className="text-emerald-400">{social.passRate}% pass rate</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Progress or CTA */}

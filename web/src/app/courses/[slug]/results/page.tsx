@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { neon } from "@neondatabase/serverless";
 import { notFound } from "next/navigation";
+import Leaderboard from "@/components/Leaderboard";
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
@@ -59,6 +60,17 @@ export default async function ResultsPage({
   const passed = completion.score >= course.pass_threshold;
   const domainScores: Record<string, number> = completion.domain_scores ?? {};
 
+  // Compute percentile
+  const percentileRows = await sql`
+    SELECT
+      COUNT(*) FILTER (WHERE score < ${completion.score}) * 100.0 / NULLIF(COUNT(*), 0) AS percentile,
+      COUNT(*) AS total_completions
+    FROM learner.completions
+    WHERE course_slug = ${slug}
+  `;
+  const percentile = percentileRows[0]?.percentile != null ? Math.round(Number(percentileRows[0].percentile)) : null;
+  const totalCompletions = Number(percentileRows[0]?.total_completions ?? 0);
+
   return (
     <main className="max-w-2xl mx-auto py-12 px-4">
       <h1 className="text-3xl font-bold text-gray-100 mb-2">{course.title}</h1>
@@ -81,6 +93,11 @@ export default async function ResultsPage({
         >
           {passed ? "PASSED" : "NOT PASSED"}
         </p>
+        {percentile != null && totalCompletions > 1 && (
+          <p className="text-sm text-gray-400 mt-2">
+            You scored better than <span className="text-amber-400 font-semibold">{percentile}%</span> of learners
+          </p>
+        )}
       </div>
 
       {Object.keys(domainScores).length > 0 && (
@@ -119,6 +136,11 @@ export default async function ResultsPage({
           </p>
         </section>
       )}
+
+      {/* Course Leaderboard */}
+      <section className="mb-8">
+        <Leaderboard scope="course" slug={slug} />
+      </section>
 
       <Link
         href="/courses"

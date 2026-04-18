@@ -10,6 +10,7 @@ import ReflectionCard from "./ReflectionCard";
 import TutorPanel from "./TutorPanel";
 import NavHint from "./NavHint";
 import MasteryCheckpoint from "./MasteryCheckpoint";
+import XpToast from "./XpToast";
 import { getRemediationCards } from "@/lib/adaptive-router";
 
 interface LearnerProfile {
@@ -80,6 +81,7 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
   } | null>(null);
   // Track quiz scores client-side so checkpoints work even without a profile
   const [quizScores, setQuizScores] = useState<Record<string, number>>({});
+  const [xpToast, setXpToast] = useState<{ xp: number; badges?: Array<{ id: string; name: string; icon: string }>; key: number } | null>(null);
 
   const isAdaptive = learnerProfile != null && Object.keys(learnerProfile.domain_mastery).length > 0;
 
@@ -116,11 +118,21 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
   const postProgress = useCallback(
     async (cardId: string, status: string, score?: number) => {
       try {
-        await fetch("/api/progress", {
+        const res = await fetch("/api/progress", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cardId, status, score, courseSlug }),
         });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.gamification && data.gamification.xpEarned > 0) {
+            setXpToast({
+              xp: data.gamification.xpEarned,
+              badges: data.gamification.newBadges,
+              key: Date.now(),
+            });
+          }
+        }
       } catch { /* fail silently */ }
     },
     [courseSlug],
@@ -427,6 +439,10 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
         open={tutorOpen}
         onToggle={() => setTutorOpen(!tutorOpen)}
       />
+
+      {xpToast && (
+        <XpToast key={xpToast.key} xp={xpToast.xp} badges={xpToast.badges} />
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+import { recordCardCompletion, recordCourseCompletion } from "@/lib/gamification";
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
@@ -45,6 +46,16 @@ export async function POST(request: Request) {
         completed_at = CASE WHEN EXCLUDED.status = 'completed' THEN NOW() ELSE learner.card_progress.completed_at END
     `;
 
+    // Record gamification on card completion
+    let gamification = null;
+    if (status === "completed") {
+      // Look up card type
+      const cardRows = await sql`SELECT card_type, course_slug FROM content.cards WHERE id = ${cardId}`;
+      if (cardRows.length > 0) {
+        gamification = await recordCardCompletion(sql, userId, cardId, cardRows[0].card_type, score ?? null);
+      }
+    }
+
     // Check if course is complete
     const courseRows = await sql`
       SELECT c.course_slug
@@ -53,7 +64,7 @@ export async function POST(request: Request) {
     `;
 
     if (courseRows.length === 0) {
-      return NextResponse.json({ completed: false });
+      return NextResponse.json({ completed: false, gamification });
     }
 
     const courseSlug = courseRows[0].course_slug;
@@ -94,22 +105,34 @@ export async function POST(request: Request) {
         }
       }
 
+      const passed = avg_score !== null && Number(avg_score) >= threshold;
+
       await sql`
-        INSERT INTO learner.completions (user_id, course_slug, score, domain_scores)
-        VALUES (${userId}, ${courseSlug}, ${Number(avg_score)}, ${JSON.stringify(scores)})
+        INSERT INTO learner.completions (user_id, course_slug, score, passed, domain_scores)
+        VALUES (${userId}, ${courseSlug}, ${Number(avg_score)}, ${passed}, ${JSON.stringify(scores)})
         ON CONFLICT (user_id, course_slug) DO UPDATE SET
           score = EXCLUDED.score,
+          passed = EXCLUDED.passed,
           domain_scores = EXCLUDED.domain_scores,
           completed_at = NOW()
       `;
 
+      // Award course completion XP + badges
+      const courseGamification = await recordCourseCompletion(sql, userId, courseSlug, passed);
+      if (gamification) {
+        gamification.xpEarned += courseGamification.xpEarned;
+        gamification.totalXp += courseGamification.xpEarned;
+        gamification.newBadges.push(...courseGamification.newBadges);
+      }
+
       return NextResponse.json({
         completed: true,
         score: Number(avg_score),
+        gamification,
       });
     }
 
-    return NextResponse.json({ completed: false });
+    return NextResponse.json({ completed: false, gamification });
   } catch (error) {
     console.error("POST /api/progress error:", error);
     return NextResponse.json(

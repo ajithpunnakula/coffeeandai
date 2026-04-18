@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BADGE_DEFS } from "@/lib/gamification";
 
 interface DomainInfo {
   name: string;
@@ -35,6 +36,18 @@ interface Completion {
   completed_at: string;
 }
 
+interface UserBadge {
+  id: string;
+  earned_at: string;
+}
+
+interface GamificationStats {
+  totalXp: number;
+  currentStreak: number;
+  longestStreak: number;
+  badges: UserBadge[];
+}
+
 interface DashboardClientProps {
   courseSlug: string;
   courseTitle: string;
@@ -43,6 +56,7 @@ interface DashboardClientProps {
   domainProgress: DomainProgress[];
   eventStats: EventStats | null;
   completion: Completion | null;
+  gamification?: GamificationStats | null;
 }
 
 function RadarChart({
@@ -167,6 +181,7 @@ export default function DashboardClient({
   domainProgress,
   eventStats,
   completion,
+  gamification,
 }: DashboardClientProps) {
   const totalCards = domainProgress.reduce((s, d) => s + d.total, 0);
   const completedCards = domainProgress.reduce((s, d) => s + d.completed, 0);
@@ -336,6 +351,56 @@ export default function DashboardClient({
             </div>
           </div>
         </div>
+
+        {/* Gamification stats */}
+        {gamification && (
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            {/* XP & Streak */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-900/80 p-6">
+              <h2 className="text-lg font-bold text-gray-100 mb-4">Your Stats</h2>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-amber-400">{gamification.totalXp.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Total XP</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-orange-400">
+                    {gamification.currentStreak > 0 && "🔥 "}{gamification.currentStreak}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Day Streak</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-300">{gamification.longestStreak}</p>
+                  <p className="text-xs text-gray-500 mt-1">Best Streak</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Badges */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-900/80 p-6">
+              <h2 className="text-lg font-bold text-gray-100 mb-4">Badges</h2>
+              <div className="grid grid-cols-4 gap-3">
+                {BADGE_DEFS.map((def) => {
+                  const earned = gamification.badges.find((b) => b.id === def.id);
+                  return (
+                    <div
+                      key={def.id}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl text-center ${
+                        earned
+                          ? "bg-amber-500/10 border border-amber-500/20"
+                          : "bg-gray-800/30 border border-gray-800 opacity-40"
+                      }`}
+                      title={earned ? `${def.name} — earned` : def.hint}
+                    >
+                      <span className="text-2xl">{def.icon}</span>
+                      <span className="text-[10px] text-gray-400 leading-tight">{def.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Summary */}
         {profile?.summary_md && (
