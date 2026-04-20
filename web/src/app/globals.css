@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #030712;
+  --foreground: #f3f4f6;
 }
 
 @theme inline {
@@ -15,13 +15,6 @@
   --color-surface: #111827;
   --color-surface-raised: #1f2937;
   --color-surface-overlay: #374151;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #030712;
-    --foreground: #f3f4f6;
-  }
 }
 
 body {
@@ -72,8 +65,8 @@ pre::-webkit-scrollbar-thumb {
 /* Mobile code blocks */
 @media (max-width: 640px) {
   pre {
-    font-size: 0.7rem;
-    line-height: 1.5;
+    font-size: 0.75rem;
+    line-height: 1.6;
   }
 }
 
