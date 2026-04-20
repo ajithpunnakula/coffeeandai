@@ -1,8 +1,8 @@
 # coffeeandai
 
-An AI platform built on [Andrej Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). The idea is simple: let an LLM maintain a structured knowledge base from curated sources, then build useful applications on top of that knowledge.
+An AI platform built on [Andrej Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). An LLM maintains a structured knowledge base from curated sources, and applications are built on top of that knowledge.
 
-The wiki serves as a living, interconnected knowledge graph — source summaries, entity pages, concept pages, all cross-referenced with wikilinks. From there, the platform can power a growing set of AI-driven solutions.
+The wiki is a living, interconnected knowledge graph — source summaries, entity pages, concept pages, all cross-referenced with wikilinks. From there, the platform powers AI-driven learning experiences.
 
 ## How It Works
 
@@ -12,9 +12,11 @@ The wiki serves as a living, interconnected knowledge graph — source summaries
 2. **Wikify** — The LLM reads sources and generates structured wiki pages with summaries, entities, and concepts, all interlinked.
 3. **Query** — Ask questions and get synthesized answers with citations from the wiki.
 
+Currently 130+ raw sources have been processed into 184 wiki pages covering Claude, AI agents, prompt engineering, and certification prep.
+
 ### The Application Layer
 
-The wiki feeds into applications that turn knowledge into experiences. The web platform is built with Next.js, backed by PostgreSQL (Neon), and uses Claude as the AI engine.
+The wiki feeds into applications that turn knowledge into experiences. The web platform is built with Next.js 16, backed by PostgreSQL (Neon), and uses Claude as the AI engine.
 
 See [architecture.md](architecture.md) for the full system design.
 
@@ -22,12 +24,17 @@ See [architecture.md](architecture.md) for the full system design.
 
 ### CoffeeAndAI — Learn AI With a Coffee
 
-The first application built on the platform. CoffeeAndAI generates personalized certification training courses and acts as an AI-powered tutor.
+CoffeeAndAI generates personalized certification training courses from wiki content and provides an AI-powered tutor on every card.
 
-**How it works:**
+**Course creation:**
 - Wiki content is transformed into structured courses with four card types: lessons, quizzes, branching scenarios, and reflections.
 - A concept prerequisite graph ensures topics are presented in the right order.
-- An AI tutor (powered by Claude) is available on every card, with full context of the material, prerequisites, and the learner's strengths and weaknesses.
+- An LLM-as-judge evaluation pipeline scores each card on clarity, accuracy, alignment, and conciseness. Low-scoring cards are flagged for regeneration.
+- A developer UI lets course creators edit cards, reorder content, manage drafts, and publish with version history.
+
+**AI tutor:**
+- Available on every card, powered by Claude with five layers of context: current card, prerequisite cards, related wiki pages, learner profile, and conversation history.
+- Rate-limited to 20 messages/hour per user.
 
 **Adaptive learning:**
 - Cards are reordered based on learner domain mastery — weak domains are prioritized, mastered page cards are skipped.
@@ -41,7 +48,7 @@ The first application built on the platform. CoffeeAndAI generates personalized 
 - 8 achievement badges (First Steps, Perfectionist, On Fire, etc.).
 - Weekly global leaderboard.
 
-**First course: Claude Certified Architect Exam Prep**
+**First course: Claude Certified Architect Foundations Exam Prep**
 - 31 cards across 5 exam domains
 - Progressive difficulty (recall, application, analysis)
 - Domain-weighted scoring aligned with the actual exam
@@ -73,14 +80,15 @@ All workflows are driven by [Claude Code](https://claude.com/claude-code) skills
 ## Project Structure
 
 ```
-raw/              # Immutable source documents
-wiki/             # LLM-maintained knowledge base
-courses/          # Generated course content (cards, graphs)
-web/              # Next.js web application
-db/               # Database schema
-scripts/          # Publishing, validation, evaluation, and media generation tools
-fetch/            # Source ingestion pipeline
+raw/              # Immutable source documents (130+ files)
+wiki/             # LLM-maintained knowledge base (184 pages)
+courses/          # Generated course content (cards, graphs, eval reports)
+web/              # Next.js 16 web application
+db/               # PostgreSQL schema (content + learner + draft schemas)
+scripts/          # Publishing, validation, evaluation, and media generation
+fetch/            # Source ingestion pipeline (bash + BATS tests)
 .claude/skills/   # Claude Code skills for all workflows
+.github/workflows # CI: test on PR, auto-publish on merge
 ```
 
 ## License
