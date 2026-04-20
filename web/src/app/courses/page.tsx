@@ -1,6 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
+
+export const metadata: Metadata = {
+  title: "Courses",
+  description:
+    "Browse interactive, card-based courses to prepare for AI certifications.",
+  openGraph: {
+    type: "website",
+    title: "Courses",
+    description:
+      "Browse interactive, card-based courses to prepare for AI certifications.",
+    url: "https://coffeeandai.xyz/courses",
+  },
+};
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);

@@ -15,9 +15,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteDescription =
+  "Master AI certifications with interactive, card-based courses";
+
 export const metadata: Metadata = {
-  title: "Coffee & AI",
-  description: "Master AI certifications with interactive, card-based courses",
+  title: {
+    default: "Coffee & AI",
+    template: "%s | Coffee & AI",
+  },
+  description: siteDescription,
+  openGraph: {
+    type: "website",
+    siteName: "Coffee & AI",
+    title: "Coffee & AI",
+    description: siteDescription,
+    url: "https://coffeeandai.xyz",
+  },
+  twitter: {
+    card: "summary",
+    title: "Coffee & AI",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({

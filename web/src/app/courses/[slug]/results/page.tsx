@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -7,6 +8,20 @@ import Leaderboard from "@/components/Leaderboard";
 
 function getDb() {
   return neon(process.env.DATABASE_URL!);
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const sql = getDb();
+  const rows = await sql`
+    SELECT title FROM content.courses WHERE slug = ${slug} LIMIT 1
+  `;
+  if (!rows[0]) return {};
+  return { title: `Results — ${rows[0].title}` };
 }
 
 export default async function ResultsPage({
