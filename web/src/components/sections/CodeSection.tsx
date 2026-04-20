@@ -65,7 +65,7 @@ export default function CodeSection({ section }: { section: Section }) {
 
         {/* Code block */}
         <div className="overflow-x-auto p-4">
-          <pre className="text-xs sm:text-sm leading-relaxed">
+          <pre className="text-xs sm:text-sm leading-relaxed text-gray-200">
             <code>{visibleCode}</code>
           </pre>
         </div>
