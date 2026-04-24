@@ -14,8 +14,11 @@ export interface Section {
  * Each section becomes a micro-slide in the PageCard player.
  */
 export function splitSections(bodyMd: string, cardTitle: string): Section[] {
+  // Strip wrapping ```markdown code fence if present (LLM output artifact)
+  let stripped = bodyMd.trim();
+  stripped = stripped.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)```\s*$/g, "$1").trim();
   // Strip [[wikilinks]] → plain text
-  const cleaned = bodyMd.replace(/\[\[([^\]]+)\]\]/g, "$1");
+  const cleaned = stripped.replace(/\[\[([^\]]+)\]\]/g, "$1");
   const lines = cleaned.split("\n");
   const rawSections: { heading: string | null; lines: string[] }[] = [];
 
