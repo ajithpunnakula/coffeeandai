@@ -33,13 +33,24 @@ export default function AIChatPanel({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [messages]);
 
+  // Abort in-flight stream on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
+
   async function sendMessage(text: string) {
     if (!text.trim() || streaming) return;
+
+    // Cancel any lingering previous request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const userMsg: Message = { role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
@@ -57,6 +68,7 @@ export default function AIChatPanel({
           message: text.trim(),
           currentCardData: currentCard,
         }),
+        signal: controller.signal,
       });
 
       if (!resp.ok) {
@@ -67,21 +79,28 @@ export default function AIChatPanel({
       const decoder = new TextDecoder();
       let accumulated = "";
 
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        const snapshot = accumulated;
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: snapshot,
-          };
-          return updated;
-        });
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            accumulated += decoder.decode(value, { stream: true });
+            const snapshot = accumulated;
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: "assistant",
+                content: snapshot,
+              };
+              return updated;
+            });
+          }
+        } finally {
+          reader.releaseLock();
+        }
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages((prev) => {
         const updated = [...prev];
         updated[updated.length - 1] = {
@@ -91,6 +110,7 @@ export default function AIChatPanel({
         return updated;
       });
     } finally {
+      abortRef.current = null;
       setStreaming(false);
     }
   }

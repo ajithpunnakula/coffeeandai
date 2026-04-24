@@ -28,13 +28,21 @@ export default function TutorPanel({ courseSlug, cardId, open, onToggle }: Tutor
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const prevCardIdRef = useRef(cardId);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (cardId !== prevCardIdRef.current) {
+      abortRef.current?.abort();
+      setStreaming(false);
       setMessages([]);
       prevCardIdRef.current = cardId;
     }
   }, [cardId]);
+
+  // Abort in-flight stream on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Close on click outside (mobile only)
   useEffect(() => {
@@ -55,6 +63,11 @@ export default function TutorPanel({ courseSlug, cardId, open, onToggle }: Tutor
 
   async function sendMessage(text: string) {
     if (!text.trim() || streaming) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setMessages((prev) => [...prev, { role: "user", content: text.trim() }]);
     setInput("");
     setStreaming(true);
@@ -65,34 +78,40 @@ export default function TutorPanel({ courseSlug, cardId, open, onToggle }: Tutor
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseSlug, cardId, message: text.trim() }),
+        signal: controller.signal,
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: "Request failed" }));
         setMessages((prev) => {
           const u = [...prev]; u[u.length - 1] = { role: "assistant", content: err.error ?? "Something went wrong." }; return u;
         });
-        setStreaming(false);
         return;
       }
       const reader = resp.body?.getReader();
-      if (!reader) { setStreaming(false); return; }
+      if (!reader) return;
       const decoder = new TextDecoder();
       let accumulated = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        const snapshot = accumulated;
-        setMessages((prev) => {
-          const u = [...prev]; u[u.length - 1] = { role: "assistant", content: snapshot }; return u;
-        });
-        scrollToBottom();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          const snapshot = accumulated;
+          setMessages((prev) => {
+            const u = [...prev]; u[u.length - 1] = { role: "assistant", content: snapshot }; return u;
+          });
+          scrollToBottom();
+        }
+      } finally {
+        reader.releaseLock();
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setMessages((prev) => {
         const u = [...prev]; u[u.length - 1] = { role: "assistant", content: "Connection error." }; return u;
       });
     } finally {
+      abortRef.current = null;
       setStreaming(false);
       scrollToBottom();
     }
@@ -149,7 +168,7 @@ export default function TutorPanel({ courseSlug, cardId, open, onToggle }: Tutor
           placeholder="Ask the tutor..." disabled={streaming}
           className="flex-1 text-sm bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 disabled:opacity-50" />
         <button onClick={() => sendMessage(input)} disabled={streaming || !input.trim()}
-          className="px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-sm rounded-xl hover:from-amber-400 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+          className={`px-3 py-2 text-sm rounded-xl transition-all ${streaming || !input.trim() ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500"}`}>
           Send
         </button>
       </div>

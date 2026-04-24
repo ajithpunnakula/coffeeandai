@@ -65,23 +65,25 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
         .filter((c): c is Card => c != null)
     : cards;
 
-  // Debounced auto-save
-  const scheduleSave = useCallback(() => {
-    setSaveStatus("dirty");
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => flushSave(), 500);
-  }, []);
+  // Use refs so the debounced timer always calls the latest flushSave
+  const cardsRef = useRef(cards);
+  const courseRef = useRef(course);
+  useEffect(() => { cardsRef.current = cards; }, [cards]);
+  useEffect(() => { courseRef.current = course; }, [course]);
 
   async function flushSave() {
     setSaveStatus("saving");
     try {
+      const currentCards = cardsRef.current;
+      const currentCourse = courseRef.current;
+
       // Save dirty cards
       const cardIds = Array.from(dirtyCards.current);
       dirtyCards.current.clear();
 
       await Promise.all(
         cardIds.map(async (cardId) => {
-          const card = cards.find((c) => c.id === cardId);
+          const card = currentCards.find((c) => c.id === cardId);
           if (!card) return;
           const res = await fetch(`/api/developer/cards/${cardId}`, {
             method: "PATCH",
@@ -107,18 +109,18 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
       // Save course metadata if dirty
       if (dirtyCourse.current) {
         dirtyCourse.current = false;
-        const res = await fetch(`/api/developer/courses/${course.slug}`, {
+        const res = await fetch(`/api/developer/courses/${currentCourse.slug}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: course.title,
-            summary: course.summary,
-            estimated_minutes: course.estimated_minutes,
-            pass_threshold: course.pass_threshold,
-            exam_target: course.exam_target,
-            target_audience: course.target_audience,
-            domains: course.domains,
-            tags: course.tags,
+            title: currentCourse.title,
+            summary: currentCourse.summary,
+            estimated_minutes: currentCourse.estimated_minutes,
+            pass_threshold: currentCourse.pass_threshold,
+            exam_target: currentCourse.exam_target,
+            target_audience: currentCourse.target_audience,
+            domains: currentCourse.domains,
+            tags: currentCourse.tags,
           }),
         });
         if (!res.ok) throw new Error("Failed to save course");
@@ -129,6 +131,13 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
       setSaveStatus("error");
     }
   }
+
+  // Debounced auto-save
+  const scheduleSave = useCallback(() => {
+    setSaveStatus("dirty");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => flushSave(), 500);
+  }, []);
 
   function handleCardChange(fields: Record<string, any>) {
     if (!selectedCardId) return;
@@ -161,12 +170,22 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
     });
     if (!res.ok) return;
     const newCard = await res.json();
+    const newOrder = [...(course.card_order ?? []), newCard.id];
     setCards((prev) => [...prev, newCard]);
     setCourse((prev) => ({
       ...prev,
-      card_order: [...(prev.card_order ?? []), newCard.id],
+      card_order: newOrder,
     }));
     setSelectedCardId(newCard.id);
+    // Persist card_order to DB immediately
+    await fetch("/api/developer/cards/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseSlug: course.slug,
+        cardOrder: newOrder,
+      }),
+    });
   }
 
   async function handleDeleteCard(cardId: string) {
@@ -209,13 +228,15 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
         method: "POST",
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ error: "Publish request failed" }));
         alert(`Publish failed: ${data.error}`);
         return;
       }
       const data = await res.json();
       alert(`Published v${data.version} successfully!`);
       window.location.href = "/developer";
+    } catch (err) {
+      alert(`Publish failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setPublishing(false);
     }
