@@ -1,6 +1,7 @@
 "use client";
 
-import PageCard from "@/components/PageCard";
+import { useEffect, useRef } from "react";
+import PageCard, { type PageCardRef } from "@/components/PageCard";
 
 interface PageCardEditorProps {
   card: {
@@ -21,10 +22,30 @@ export default function PageCardEditor({
   preview,
   onChange,
 }: PageCardEditorProps) {
+  const pageCardRef = useRef<PageCardRef>(null);
+
+  useEffect(() => {
+    if (!preview) return;
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight" || e.key === " ") {
+        e.preventDefault();
+        pageCardRef.current?.advanceSlide();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        pageCardRef.current?.goBackSlide();
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [preview]);
+
   if (preview) {
     return (
       <div className="p-5 sm:p-8 max-w-2xl mx-auto">
         <PageCard
+          ref={pageCardRef}
           key={card.id}
           card={{
             id: card.id,
