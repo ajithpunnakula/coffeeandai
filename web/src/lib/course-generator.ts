@@ -228,7 +228,10 @@ function parseCardOutput(
   text: string,
 ): { body_md: string; metadata: any } {
   if (cardType === "page") {
-    return { body_md: text.trim(), metadata: {} };
+    // Strip wrapping ```markdown code fence if present
+    let body = text.trim();
+    body = body.replace(/^```(?:markdown|md)?\s*\n([\s\S]*?)```\s*$/g, "$1").trim();
+    return { body_md: body, metadata: {} };
   }
 
   // For structured types, extract JSON
