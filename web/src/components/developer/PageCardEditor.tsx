@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { splitSections } from "@/lib/split-sections";
-import SectionRenderer from "@/components/sections/SectionRenderer";
+import PageCard from "@/components/PageCard";
 
 interface PageCardEditorProps {
   card: {
@@ -23,47 +21,21 @@ export default function PageCardEditor({
   preview,
   onChange,
 }: PageCardEditorProps) {
-  const [slideIndex, setSlideIndex] = useState(0);
-
   if (preview) {
-    const sections = splitSections(card.body_md ?? "", card.title);
-    const section = sections[slideIndex] ?? sections[0];
-    const totalSlides = sections.length;
-
     return (
-      <div className="p-5 sm:p-8 max-w-2xl mx-auto space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-xl font-bold text-gray-100">{card.title}</h2>
-          {card.domain && (
-            <span className="shrink-0 rounded-full bg-amber-500/10 text-amber-400 px-2.5 py-0.5 text-xs font-medium">
-              {card.domain}
-            </span>
-          )}
-        </div>
-
-        {card.image_url && slideIndex === 0 && (
-          <img src={card.image_url} alt={card.title} className="w-full rounded-lg" />
-        )}
-
-        <div style={{ minHeight: 200 }}>
-          {section && <SectionRenderer section={section} />}
-        </div>
-
-        {totalSlides > 1 && (
-          <div className="flex items-center justify-center gap-1.5 pt-2">
-            {sections.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setSlideIndex(i)}
-                className={`rounded-full transition-all duration-200 ${
-                  i === slideIndex
-                    ? "w-6 h-2 bg-amber-400"
-                    : "w-2 h-2 bg-gray-600 hover:bg-gray-500"
-                }`}
-              />
-            ))}
-          </div>
-        )}
+      <div className="p-5 sm:p-8 max-w-2xl mx-auto">
+        <PageCard
+          key={card.id}
+          card={{
+            id: card.id,
+            title: card.title,
+            body_md: card.body_md ?? "",
+            domain: card.domain ?? "",
+            difficulty: card.difficulty ?? 0,
+            image_url: card.image_url ?? undefined,
+            audio_url: card.audio_url ?? undefined,
+          }}
+        />
       </div>
     );
   }
