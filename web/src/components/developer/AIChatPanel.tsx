@@ -200,7 +200,11 @@ export default function AIChatPanel({
           <button
             onClick={() => sendMessage(input)}
             disabled={streaming || !input.trim()}
-            className="px-3 py-2 rounded-lg bg-amber-500 text-gray-900 text-sm font-medium hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+              streaming || !input.trim()
+                ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                : "bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-400 hover:to-orange-500"
+            }`}
           >
             Send
           </button>
