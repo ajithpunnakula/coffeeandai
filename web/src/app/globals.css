@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   --background: #030712;
@@ -68,6 +69,29 @@ pre::-webkit-scrollbar-thumb {
     font-size: 0.75rem;
     line-height: 1.6;
   }
+}
+
+/* Markdown tables — dark-mode borders and padding */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid #374151;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.prose th {
+  background: #1f2937;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.prose tr:nth-child(even) {
+  background: #111827;
 }
 
 /* Strip wikilinks [[text]] to plain text in rendered markdown */
