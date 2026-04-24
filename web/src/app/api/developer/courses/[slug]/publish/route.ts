@@ -147,18 +147,25 @@ export async function POST(
       `;
 
       for (const oldCard of existingCards) {
-        // Check if any learner progress references this card
-        const progressRefs = await sql`
-          SELECT 1 FROM learner.card_progress
-          WHERE card_id = ${oldCard.id}
+        // Check if any tables reference this card via FK
+        const hasRefs = await sql`
+          SELECT 1 FROM (
+            SELECT card_id FROM learner.card_progress WHERE card_id = ${oldCard.id}
+            UNION ALL
+            SELECT card_id FROM learner.card_events WHERE card_id = ${oldCard.id}
+            UNION ALL
+            SELECT card_id FROM content.card_metrics WHERE card_id = ${oldCard.id}
+            UNION ALL
+            SELECT card_id FROM content.card_quality WHERE card_id = ${oldCard.id}
+          ) refs
           LIMIT 1
         `;
 
-        if (progressRefs.length === 0) {
-          // Safe to delete — no learner data references it
+        if (hasRefs.length === 0) {
+          // Safe to delete — no references exist
           await sql`DELETE FROM content.cards WHERE id = ${oldCard.id}`;
         }
-        // If progress exists, card row stays but is no longer in card_order
+        // If references exist, card row stays but is no longer in card_order
       }
     }
 
