@@ -88,7 +88,7 @@ export async function clonePublishedToDraft(
       ${course.slug}, ${course.title}, ${course.summary},
       ${course.exam_target}, ${course.target_audience},
       ${course.estimated_minutes}, ${course.pass_threshold},
-      ${course.domains}, ${course.wiki_refs},
+      ${course.domains != null ? JSON.stringify(course.domains) : null}, ${course.wiki_refs},
       ${course.card_order}, ${course.tags}, ${userId}
     )
     ON CONFLICT (slug) DO UPDATE SET
@@ -118,7 +118,7 @@ export async function clonePublishedToDraft(
       ) VALUES (
         ${card.id}, ${courseSlug}, ${card.card_type}, ${card.ord},
         ${card.difficulty}, ${card.title}, ${card.body_md}, ${card.domain},
-        ${card.metadata}, ${card.wiki_refs}, ${card.image_url},
+        ${card.metadata != null ? JSON.stringify(card.metadata) : null}, ${card.wiki_refs}, ${card.image_url},
         ${card.audio_url}, ${card.source}
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -175,7 +175,7 @@ export async function updateDraft(
       target_audience = COALESCE(${updates.target_audience ?? null}, target_audience),
       estimated_minutes = COALESCE(${updates.estimated_minutes ?? null}, estimated_minutes),
       pass_threshold = COALESCE(${updates.pass_threshold ?? null}, pass_threshold),
-      domains = COALESCE(${updates.domains ?? null}, domains),
+      domains = COALESCE(${updates.domains != null ? JSON.stringify(updates.domains) : null}, domains),
       wiki_refs = COALESCE(${updates.wiki_refs ?? null}, wiki_refs),
       card_order = COALESCE(${updates.card_order ?? null}, card_order),
       tags = COALESCE(${updates.tags ?? null}, tags),

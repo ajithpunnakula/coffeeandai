@@ -49,6 +49,7 @@ export async function POST(
       : slug; // Use slug as ID for new courses
 
     // 5. Create version snapshot
+    const domainsJson = draft.domains != null ? JSON.stringify(draft.domains) : null;
     const versionInsert = await sql`
       INSERT INTO content.course_versions (
         course_id, slug, version, title, summary, exam_target,
@@ -58,7 +59,7 @@ export async function POST(
         ${courseId}, ${slug}, ${nextVersion}, ${draft.title},
         ${draft.summary}, ${draft.exam_target}, ${draft.target_audience},
         ${draft.estimated_minutes}, ${draft.pass_threshold},
-        ${draft.domains}, ${draft.wiki_refs}, ${draft.card_order},
+        ${domainsJson}, ${draft.wiki_refs}, ${draft.card_order},
         ${draft.tags}, ${user.id}
       )
       RETURNING id
@@ -67,6 +68,7 @@ export async function POST(
 
     // 6. Snapshot cards into card_versions
     for (const card of draftCards) {
+      const metadataJson = card.metadata != null ? JSON.stringify(card.metadata) : null;
       await sql`
         INSERT INTO content.card_versions (
           version_id, card_id, card_type, ord, difficulty, title,
@@ -74,7 +76,7 @@ export async function POST(
         ) VALUES (
           ${versionId}, ${card.id}, ${card.card_type}, ${card.ord},
           ${card.difficulty}, ${card.title}, ${card.body_md}, ${card.domain},
-          ${card.metadata}, ${card.wiki_refs}, ${card.image_url},
+          ${metadataJson}, ${card.wiki_refs}, ${card.image_url},
           ${card.audio_url}, ${card.source}
         )
       `;
@@ -90,7 +92,7 @@ export async function POST(
         ${courseId}, ${slug}, ${draft.title}, ${draft.summary},
         'published', ${draft.exam_target}, ${draft.target_audience},
         ${draft.estimated_minutes}, ${draft.pass_threshold},
-        ${draft.domains}, ${draft.wiki_refs}, ${draft.card_order},
+        ${domainsJson}, ${draft.wiki_refs}, ${draft.card_order},
         ${draft.tags}, ${versionId}, now()
       )
       ON CONFLICT (slug) DO UPDATE SET
@@ -111,6 +113,7 @@ export async function POST(
 
     // 8. Upsert cards into content.cards (preserve IDs for learner progress)
     for (const card of draftCards) {
+      const cardMetadataJson = card.metadata != null ? JSON.stringify(card.metadata) : null;
       await sql`
         INSERT INTO content.cards (
           id, course_slug, card_type, ord, difficulty, title,
@@ -118,7 +121,7 @@ export async function POST(
         ) VALUES (
           ${card.id}, ${slug}, ${card.card_type}, ${card.ord},
           ${card.difficulty}, ${card.title}, ${card.body_md}, ${card.domain},
-          ${card.metadata}, ${card.wiki_refs}, ${card.image_url},
+          ${cardMetadataJson}, ${card.wiki_refs}, ${card.image_url},
           ${card.audio_url}, ${card.source}
         )
         ON CONFLICT (id) DO UPDATE SET
