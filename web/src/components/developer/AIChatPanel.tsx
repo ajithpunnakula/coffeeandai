@@ -65,12 +65,14 @@ export default function AIChatPanel({
   const abortRef = useRef<AbortController | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analyzedCards = useRef<Set<string>>(new Set());
+  const messagesRef = useRef<ChatMessage[]>([]);
   const lastPendingProposalRef = useRef<{
     messageIndex: number;
     proposalIndex: number;
   } | null>(null);
 
   useEffect(() => {
+    messagesRef.current = messages;
     bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [messages]);
 
@@ -84,8 +86,9 @@ export default function AIChatPanel({
   const buildHistory = useCallback(
     (existing: ChatMessage[], extra?: ChatMessage): any[] => {
       const all = extra ? [...existing, extra] : existing;
+      // `hidden` is a UI-only flag (so the proactive trigger prompt doesn't
+      // show up in the chat); the message still needs to reach the model.
       return all
-        .filter((m) => !m.hidden)
         .filter((m) => m.role === "user" || m.content.trim().length > 0)
         .map((m) => ({
           id: m.id,
@@ -233,12 +236,10 @@ export default function AIChatPanel({
       setInput("");
       setStreaming(true);
 
-      let history: any[] = [];
-      setMessages((prev) => {
-        const next = [...prev, userMsg, assistantMsg];
-        history = buildHistory(prev, userMsg);
-        return next;
-      });
+      const history = buildHistory(messagesRef.current, userMsg);
+      const next = [...messagesRef.current, userMsg, assistantMsg];
+      messagesRef.current = next;
+      setMessages(next);
 
       try {
         await runStream(history, assistantId, "chat");
@@ -275,11 +276,10 @@ export default function AIChatPanel({
       };
 
       setStreaming(true);
-      let history: any[] = [];
-      setMessages((prev) => {
-        history = buildHistory(prev, userMsg);
-        return [...prev, userMsg, assistantMsg];
-      });
+      const history = buildHistory(messagesRef.current, userMsg);
+      const next = [...messagesRef.current, userMsg, assistantMsg];
+      messagesRef.current = next;
+      setMessages(next);
 
       runStream(history, assistantId, "proactive").finally(() => {
         setStreaming(false);
