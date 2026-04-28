@@ -7,6 +7,7 @@ import ProposalPreview, {
   type EditProposal,
   type EditProposalFields,
 } from "./ProposalPreview";
+import { sanitizeEditFields } from "@/lib/sanitize-edit-proposal";
 
 interface ChatMessage {
   id: string;
@@ -171,11 +172,11 @@ export default function AIChatPanel({
                 const input = chunk.input ?? {};
                 const proposal: EditProposal = {
                   toolCallId: chunk.toolCallId,
-                  fields: {
+                  fields: sanitizeEditFields({
                     title: input.title,
                     body_md: input.body_md,
                     metadata: input.metadata,
-                  },
+                  }),
                   explanation: input.explanation ?? "",
                   status: "pending",
                 };

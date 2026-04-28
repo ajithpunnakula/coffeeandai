@@ -79,9 +79,16 @@ function QuizPreview({
   title: string;
   metadata: any;
 }) {
-  const questions: any[] = Array.isArray(metadata?.questions)
-    ? metadata.questions
-    : [];
+  const questions: any[] = (
+    Array.isArray(metadata?.questions) ? metadata.questions : []
+  ).filter(
+    (q: any) =>
+      q &&
+      typeof q.prompt === "string" &&
+      q.prompt.trim().length > 0 &&
+      Array.isArray(q.choices) &&
+      q.choices.length > 0,
+  );
   return (
     <div className="rounded-lg bg-gray-900 p-4 border border-gray-800 space-y-3">
       <h3 className="text-sm font-bold text-gray-100">{title}</h3>
@@ -129,7 +136,14 @@ function ScenarioPreview({
   title: string;
   metadata: any;
 }) {
-  const steps: any[] = Array.isArray(metadata?.steps) ? metadata.steps : [];
+  const steps: any[] = (
+    Array.isArray(metadata?.steps) ? metadata.steps : []
+  ).filter(
+    (s: any) =>
+      s &&
+      typeof s.id === "string" &&
+      (typeof s.situation === "string" || typeof s.outcome === "string"),
+  );
   const start = steps.find((s) => s.id === "start") ?? steps[0];
   return (
     <div className="rounded-lg bg-gray-900 p-4 border border-gray-800 space-y-3">
