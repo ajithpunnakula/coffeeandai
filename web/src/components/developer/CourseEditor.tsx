@@ -339,6 +339,7 @@ export default function CourseEditor({ initialCourse }: CourseEditorProps) {
         currentCard={selectedCard}
         open={aiPanelOpen}
         onToggle={() => setAiPanelOpen(!aiPanelOpen)}
+        onApplyEdit={handleCardChange}
       />
     </div>
   );
