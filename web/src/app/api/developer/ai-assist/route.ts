@@ -4,24 +4,66 @@ import { z } from "zod";
 import { requireDeveloper, AuthError } from "@/lib/auth-guards";
 import { getDb } from "@/lib/db";
 
+const quizChoiceSchema = z.object({
+  text: z.string().min(1),
+  correct: z.boolean(),
+  misconception: z.string().optional(),
+});
+
+const quizQuestionSchema = z.object({
+  prompt: z.string().min(1),
+  choices: z.array(quizChoiceSchema).min(2),
+  objective: z.string().optional(),
+});
+
+const quizMetadataSchema = z.object({
+  questions: z.array(quizQuestionSchema).min(1),
+  pass_threshold: z.number().min(0).max(1).optional(),
+});
+
+const scenarioChoiceSchema = z.object({
+  text: z.string().min(1),
+  next: z.string().min(1),
+  score: z.number(),
+});
+
+const scenarioStepSchema = z.object({
+  id: z.string().min(1),
+  situation: z.string().optional(),
+  choices: z.array(scenarioChoiceSchema).optional(),
+  outcome: z.string().optional(),
+});
+
+const scenarioMetadataSchema = z.object({
+  steps: z.array(scenarioStepSchema).min(1),
+});
+
+const reflectionMetadataSchema = z.object({
+  prompt: z.string().min(1),
+});
+
 export const editCardInputSchema = z.object({
-  title: z.string().optional().describe("Replacement card title"),
+  title: z.string().optional().describe("Replacement card title."),
   body_md: z
     .string()
     .optional()
     .describe(
-      "Replacement markdown body for the card. For page cards, use --- to separate slides.",
+      "Replacement markdown body. Used for page cards (separate slides with --- on its own line). Leave undefined for quiz/scenario/reflection cards.",
     ),
   metadata: z
-    .any()
+    .union([
+      quizMetadataSchema,
+      scenarioMetadataSchema,
+      reflectionMetadataSchema,
+    ])
     .optional()
     .describe(
-      "Replacement metadata object. For quiz cards: { questions: [{prompt, choices: [{text, correct, misconception?}], objective?}], pass_threshold }. For scenario cards: { steps: [{id, situation, choices?, outcome?}] }. For reflection cards: { prompt }.",
+      "Replacement metadata. This is a FULL REPLACEMENT — include every question/step/field that should remain on the card, not just the new ones. Quiz: { questions: [{prompt, choices: [{text, correct, misconception?}], objective?}], pass_threshold }. Scenario: { steps: [{id, situation, choices?, outcome?}] }. Reflection: { prompt }. Do NOT include empty placeholder entries.",
     ),
   explanation: z
     .string()
     .describe(
-      "Plain-language, non-technical explanation of what was changed and why. One or two friendly sentences.",
+      "Plain-language, non-technical explanation of what changed and why. One or two friendly sentences.",
     ),
 });
 
@@ -126,7 +168,11 @@ export function buildAIAssistPrompt(
   );
 
   parts.push(
-    `\nFor edit_card, only include fields you are actually changing. Leave other fields undefined to preserve them. Always include explanation.`,
+    `\nFor edit_card:`,
+    `- Only include fields you are actually changing. Leave fields you are NOT changing undefined.`,
+    `- metadata is a FULL REPLACEMENT, not a partial patch. If you change one quiz question's choices, include EVERY question that should remain on the card (with their prompt and choices), in order. Never include empty or placeholder entries.`,
+    `- For scenario cards, include every step that should remain.`,
+    `- Always include explanation.`,
   );
 
   if (course) {
