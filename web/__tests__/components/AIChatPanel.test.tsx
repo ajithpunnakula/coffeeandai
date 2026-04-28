@@ -38,7 +38,7 @@ describe("AIChatPanel", () => {
     render(<AIChatPanel {...baseProps} open={true} />);
     expect(screen.getByText("Improve this explanation")).toBeInTheDocument();
     expect(screen.getByText("Add a quiz question")).toBeInTheDocument();
-    expect(screen.getByText("Make this more concise")).toBeInTheDocument();
+    expect(screen.getByText("Make this shorter")).toBeInTheDocument();
   });
 
   it("has input field and send button", () => {

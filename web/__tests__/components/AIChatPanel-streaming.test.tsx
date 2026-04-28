@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import AIChatPanel from "@/components/developer/AIChatPanel";
 
@@ -6,23 +6,26 @@ vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
 }));
 
-function mockStreamResponse(chunks: string[], { hang = false } = {}) {
+function sse(chunk: object) {
+  return `data: ${JSON.stringify(chunk)}\n\n`;
+}
+
+function mockSSEResponse(chunks: object[], { hang = false } = {}) {
   let chunkIndex = 0;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async pull(controller) {
       if (chunkIndex < chunks.length) {
-        controller.enqueue(encoder.encode(chunks[chunkIndex]));
+        controller.enqueue(encoder.encode(sse(chunks[chunkIndex])));
         chunkIndex++;
       } else if (!hang) {
         controller.close();
       }
-      // If hang=true, never close — simulates a stuck stream
     },
   });
   return new Response(stream, {
     status: 200,
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "text/event-stream" },
   });
 }
 
@@ -40,18 +43,19 @@ describe("AIChatPanel streaming", () => {
 
   it("re-enables input after successful stream", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      mockStreamResponse(["Hello ", "world!"]),
+      mockSSEResponse([
+        { type: "text-delta", id: "t1", delta: "Hello " },
+        { type: "text-delta", id: "t1", delta: "world!" },
+      ]),
     );
 
     render(<AIChatPanel {...baseProps} />);
     const input = screen.getByPlaceholderText("Ask about this card...");
 
-    // Send a message via starter
     await act(async () => {
       fireEvent.click(screen.getByText("Improve this explanation"));
     });
 
-    // Wait for streaming to finish and input to be re-enabled
     await waitFor(() => {
       expect(input).not.toBeDisabled();
     });
@@ -97,33 +101,83 @@ describe("AIChatPanel streaming", () => {
     });
   });
 
-  it("aborts previous request when sending a new message", async () => {
-    const abortSpy = vi.fn();
-    const originalAbortController = globalThis.AbortController;
-    globalThis.AbortController = class extends originalAbortController {
-      constructor() {
-        super();
-        const originalAbort = this.abort.bind(this);
-        this.abort = (...args: Parameters<AbortController["abort"]>) => {
-          abortSpy();
-          return originalAbort(...args);
-        };
-      }
-    } as typeof AbortController;
+  it("renders an edit_card proposal when the AI calls the tool", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockSSEResponse([
+        { type: "text-delta", id: "t1", delta: "Here is a shorter version." },
+        {
+          type: "tool-input-available",
+          toolCallId: "call_1",
+          toolName: "edit_card",
+          input: {
+            title: "New Title",
+            body_md: "Shorter content.",
+            explanation: "Shortened the introduction.",
+          },
+        },
+      ]),
+    );
 
-    // First request hangs
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(mockStreamResponse(["Partial..."], { hang: true }))
-      .mockResolvedValueOnce(mockStreamResponse(["Second response"]));
+    const onApplyEdit = vi.fn();
+    render(<AIChatPanel {...baseProps} onApplyEdit={onApplyEdit} />);
 
-    render(<AIChatPanel {...baseProps} />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("Make this shorter"));
+    });
 
-    // Send first message
+    await waitFor(() => {
+      expect(screen.getByText("Use this version")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Shortened the introduction.")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Use this version"));
+    });
+
+    expect(onApplyEdit).toHaveBeenCalledWith({
+      title: "New Title",
+      body_md: "Shorter content.",
+      metadata: undefined,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Card updated\./)).toBeInTheDocument();
+    });
+  });
+
+  it("marks proposal as kept when 'Keep original' is clicked", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      mockSSEResponse([
+        {
+          type: "tool-input-available",
+          toolCallId: "call_2",
+          toolName: "edit_card",
+          input: {
+            body_md: "Different content",
+            explanation: "Tightened wording.",
+          },
+        },
+      ]),
+    );
+
+    const onApplyEdit = vi.fn();
+    render(<AIChatPanel {...baseProps} onApplyEdit={onApplyEdit} />);
+
     await act(async () => {
       fireEvent.click(screen.getByText("Improve this explanation"));
     });
 
-    // The abort should be called when we clean up
-    globalThis.AbortController = originalAbortController;
+    await waitFor(() => {
+      expect(screen.getByText("Keep original")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Keep original"));
+    });
+
+    expect(onApplyEdit).not.toHaveBeenCalled();
+    expect(screen.queryByText("Use this version")).not.toBeInTheDocument();
+    expect(screen.getByText("Kept original")).toBeInTheDocument();
   });
 });
