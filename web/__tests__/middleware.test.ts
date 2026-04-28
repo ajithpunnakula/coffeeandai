@@ -82,3 +82,45 @@ describe("route classification", () => {
     expect(isPublicRoute("/api/developer/cards")).toBe(false);
   });
 });
+
+/**
+ * Mirrors the matcher regex from src/middleware.ts. The matcher decides whether
+ * Clerk's middleware runs at all — paths it excludes never reach Clerk.
+ *
+ * Bug context (Sentry COFFEEANDAI-3): a crawler hit /robots.txt with a
+ * truncated __clerk_handshake query param. Because the matcher did not exclude
+ * /robots.txt or /sitemap.xml, Clerk attempted JWT verification on the
+ * malformed token and threw "Invalid JWT form".
+ */
+const matcherRegex =
+  /^\/(?!_next\/static|_next\/image|favicon\.ico|robots\.txt|sitemap\.xml|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*/;
+
+function matcherRuns(pathname: string): boolean {
+  return matcherRegex.test(pathname);
+}
+
+describe("middleware matcher excludes crawler metadata routes", () => {
+  it("does not run on /robots.txt", () => {
+    expect(matcherRuns("/robots.txt")).toBe(false);
+  });
+
+  it("does not run on /sitemap.xml", () => {
+    expect(matcherRuns("/sitemap.xml")).toBe(false);
+  });
+
+  it("does not run on /favicon.ico", () => {
+    expect(matcherRuns("/favicon.ico")).toBe(false);
+  });
+
+  it("does not run on static assets", () => {
+    expect(matcherRuns("/logo.svg")).toBe(false);
+    expect(matcherRuns("/_next/static/chunks/main.js")).toBe(false);
+    expect(matcherRuns("/_next/image")).toBe(false);
+  });
+
+  it("still runs on app routes", () => {
+    expect(matcherRuns("/")).toBe(true);
+    expect(matcherRuns("/courses")).toBe(true);
+    expect(matcherRuns("/api/enroll")).toBe(true);
+  });
+});
