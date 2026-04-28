@@ -146,6 +146,33 @@ describe("AIChatPanel streaming", () => {
     });
   });
 
+  it("sends the proactive prompt to the API after the debounce", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(mockSSEResponse([], { hang: true }));
+
+      render(<AIChatPanel {...baseProps} />);
+
+      // Proactive trigger debounces 1.5s
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(fetchSpy).toHaveBeenCalled();
+      const [, init] = fetchSpy.mock.calls[0];
+      const body = JSON.parse((init as RequestInit).body as string);
+      expect(body.mode).toBe("proactive");
+      expect(Array.isArray(body.messages)).toBe(true);
+      expect(body.messages.length).toBeGreaterThan(0);
+      expect(body.messages[0].role).toBe("user");
+      expect(body.messages[0].parts[0].text.length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("marks proposal as kept when 'Keep original' is clicked", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       mockSSEResponse([
