@@ -51,7 +51,15 @@ export default async function AdminPage() {
 
   return (
     <main className="max-w-5xl mx-auto py-12 px-4">
-      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <Link
+          href="/admin/insights"
+          className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          Insights →
+        </Link>
+      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">

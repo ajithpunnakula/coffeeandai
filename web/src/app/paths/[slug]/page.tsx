@@ -187,12 +187,20 @@ export default async function PathDetailPage({
             </form>
           )}
           {complete && (
-            <span
-              className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-300 text-sm font-medium"
-              data-path-status="complete"
-            >
-              Complete
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-300 text-sm font-medium"
+                data-path-status="complete"
+              >
+                Complete
+              </span>
+              <Link
+                href={`/paths/${path.slug}/certificate`}
+                className="px-3 py-1.5 rounded-full bg-amber-500 text-gray-900 text-sm font-semibold hover:bg-amber-400"
+              >
+                View certificate
+              </Link>
+            </div>
           )}
         </div>
       </header>
