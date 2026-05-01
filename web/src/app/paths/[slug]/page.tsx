@@ -209,25 +209,25 @@ export default async function PathDetailPage({
         {gates.map((g, i) => {
           const c = courseBySlug[g.course_slug];
           if (!c) return null;
-          return (
-            <div
-              key={g.course_slug}
-              data-course-slug={g.course_slug}
-              data-locked={g.locked ? "true" : "false"}
-              data-required={g.required ? "true" : "false"}
-              data-complete={g.complete ? "true" : "false"}
-              className={`rounded-xl border p-5 flex items-start justify-between gap-4 transition ${
-                g.locked
-                  ? "border-gray-800 bg-gray-900/30 opacity-60"
-                  : "border-gray-800 bg-gray-900/50 hover:border-gray-700"
-              }`}
-            >
+          const wrapperClass = `group rounded-xl border p-5 flex items-start justify-between gap-4 transition ${
+            g.locked
+              ? "border-gray-800 bg-gray-900/30 opacity-60"
+              : "border-gray-800 bg-gray-900/50 hover:border-gray-700 hover:bg-gray-900/80"
+          }`;
+          const sharedAttrs = {
+            "data-course-slug": g.course_slug,
+            "data-locked": g.locked ? "true" : "false",
+            "data-required": g.required ? "true" : "false",
+            "data-complete": g.complete ? "true" : "false",
+          } as const;
+          const inner = (
+            <>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs text-gray-500 tabular-nums">
                     {String(i + 1).padStart(2, "0")}
                   </span>
-                  <h3 className="font-semibold text-gray-100 line-clamp-1">
+                  <h3 className="font-semibold text-gray-100 line-clamp-1 group-hover:text-amber-300 transition-colors">
                     {c.title}
                   </h3>
                   {!g.required && (
@@ -267,15 +267,26 @@ export default async function PathDetailPage({
                     🔒 Locked
                   </span>
                 ) : (
-                  <Link
-                    href={`/courses/${c.course_slug}`}
-                    className="px-4 py-2 rounded-lg bg-amber-500/10 text-amber-300 text-sm font-medium hover:bg-amber-500/20"
-                  >
+                  <span className="px-4 py-2 rounded-lg bg-amber-500/10 text-amber-300 text-sm font-medium group-hover:bg-amber-500/20 transition-colors">
                     {g.complete ? "Review" : "Open"}
-                  </Link>
+                  </span>
                 )}
               </div>
+            </>
+          );
+          return g.locked ? (
+            <div key={g.course_slug} {...sharedAttrs} className={wrapperClass}>
+              {inner}
             </div>
+          ) : (
+            <Link
+              key={g.course_slug}
+              href={`/courses/${c.course_slug}`}
+              {...sharedAttrs}
+              className={wrapperClass}
+            >
+              {inner}
+            </Link>
           );
         })}
       </section>
