@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ExtraPracticeButton from "./ExtraPracticeButton";
 
 interface Choice {
   text: string;
@@ -85,6 +86,9 @@ export default function ScenarioCard({ card, onComplete }: ScenarioCardProps) {
             {choice.text}
           </button>
         ))}
+      </div>
+      <div className="pt-2 border-t border-gray-800/60">
+        <ExtraPracticeButton domain={card.domain} cardTitle={card.title} />
       </div>
     </div>
   );

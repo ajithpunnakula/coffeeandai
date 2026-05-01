@@ -130,8 +130,15 @@ describe("QuizCard", () => {
     render(<QuizCard card={baseCard} onComplete={vi.fn()} />);
     fireEvent.click(screen.getByText("The stop_reason field in the API response"));
 
-    const buttons = screen.getAllByRole("button").filter((b) => b.textContent !== "Next Question");
-    buttons.forEach((btn) => {
+    // Quiz choice buttons are the four choices on this question. Filter to
+    // those — the "Next Question" CTA and the always-available "extra
+    // practice" button are intentionally still enabled.
+    const choiceTexts = baseCard.metadata.questions[0].choices.map((c) => c.text);
+    const choices = screen
+      .getAllByRole("button")
+      .filter((b) => choiceTexts.includes(b.textContent ?? ""));
+    expect(choices.length).toBe(choiceTexts.length);
+    choices.forEach((btn) => {
       expect(btn).toBeDisabled();
     });
   });
