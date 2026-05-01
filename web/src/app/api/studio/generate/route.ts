@@ -5,14 +5,24 @@ import {
   generateCardContent,
   validateCard,
   saveDraftCard,
+  derivePlannedSlug,
+  topicKeyFor,
+  type Level,
 } from "@/lib/course-generator";
-import { slugify } from "@/lib/draft-db";
+
+const VALID_LEVELS: Level[] = ["basic", "intermediate", "advanced"];
 
 export async function POST(request: Request) {
   try {
     const user = await requireAuthor();
-    const { topic, slug: requestedSlug, wikiRefs, examTarget } =
-      await request.json();
+    const {
+      topic,
+      slug: requestedSlug,
+      wikiRefs,
+      examTarget,
+      level: rawLevel,
+      audience,
+    } = await request.json();
 
     if (!topic) {
       return new Response(JSON.stringify({ error: "Topic is required" }), {
@@ -21,7 +31,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const slug = requestedSlug || slugify(topic);
+    const level: Level | null =
+      rawLevel && VALID_LEVELS.includes(rawLevel) ? rawLevel : null;
+    const slug = requestedSlug || derivePlannedSlug(topic, level);
+    const topicKey = topicKeyFor(topic);
     const sql = getDb();
 
     // Check if draft already exists
@@ -73,7 +86,13 @@ export async function POST(request: Request) {
           // Phase 1: Plan the course
           send({ phase: "planning", progress: { current: 0, total: 0 } });
 
-          const plan = await planCourse(topic, wikiContent, examTarget);
+          const plan = await planCourse({
+            topic,
+            level,
+            audience: audience ?? null,
+            wikiContent,
+            examTarget,
+          });
 
           send({
             phase: "planned",
@@ -89,11 +108,13 @@ export async function POST(request: Request) {
           await sql`
             INSERT INTO content.course_drafts (
               slug, title, summary, exam_target, estimated_minutes,
-              pass_threshold, domains, card_order, created_by
+              pass_threshold, domains, card_order, created_by,
+              level, topic_key, target_audience
             ) VALUES (
               ${slug}, ${plan.title}, ${plan.summary}, ${examTarget ?? null},
               ${plan.estimated_minutes}, ${plan.pass_threshold},
-              ${JSON.stringify(plan.domains)}, '{}', ${user.id}
+              ${JSON.stringify(plan.domains)}, '{}', ${user.id},
+              ${level}, ${topicKey}, ${audience ?? null}
             )
           `;
 

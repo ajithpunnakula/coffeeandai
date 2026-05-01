@@ -1,26 +1,23 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Phase 2 — level pills on /browse", () => {
-  test("/browse renders level pills when a topic has multiple level variants", async ({
+  test("topic-tile with three level pills renders for the demo-topic fixture", async ({
     page,
   }) => {
     await page.goto("/browse");
-    // The exact set of topics with all three levels depends on what's been
-    // generated/published. Phase-2 live verification seeds at least one such
-    // topic before this test runs (or leaves it as a soft assertion).
-    // Soft assertion: page renders without server error and the level-pill
-    // markup ([data-level-pill]) renders if any topic has it.
-    expect(page.url()).toContain("/browse");
 
-    // If pills exist, they must be one of the three levels.
-    const pills = page.locator("[data-level-pill]");
-    const count = await pills.count();
-    if (count > 0) {
-      const allowed = ["basic", "intermediate", "advanced"];
-      for (let i = 0; i < count; i++) {
-        const v = await pills.nth(i).getAttribute("data-level-pill");
-        expect(allowed).toContain(v);
-      }
-    }
+    // The Phase 2 fixture seeds three level variants of "demo-topic".
+    const pills = page.locator(
+      '[data-level-pill="basic"], [data-level-pill="intermediate"], [data-level-pill="advanced"]',
+    );
+
+    await expect(pills).toHaveCount(3, { timeout: 10_000 });
+  });
+
+  test("clicking a level pill opens the matching course", async ({ page }) => {
+    await page.goto("/browse");
+    const pill = page.locator('[data-level-pill="basic"]').first();
+    await pill.click();
+    await expect(page).toHaveURL(/\/courses\/demo-topic-basic/);
   });
 });

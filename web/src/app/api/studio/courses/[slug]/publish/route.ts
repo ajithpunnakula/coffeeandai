@@ -87,13 +87,14 @@ export async function POST(
       INSERT INTO content.courses (
         id, slug, title, summary, status, exam_target, target_audience,
         estimated_minutes, pass_threshold, domains, wiki_refs,
-        card_order, tags, published_version_id, published_at
+        card_order, tags, level, topic_key, published_version_id, published_at
       ) VALUES (
         ${courseId}, ${slug}, ${draft.title}, ${draft.summary},
         'published', ${draft.exam_target}, ${draft.target_audience},
         ${draft.estimated_minutes}, ${draft.pass_threshold},
         ${domainsJson}, ${draft.wiki_refs}, ${draft.card_order},
-        ${draft.tags}, ${versionId}, now()
+        ${draft.tags}, ${draft.level ?? null}, ${draft.topic_key ?? null},
+        ${versionId}, now()
       )
       ON CONFLICT (slug) DO UPDATE SET
         title = EXCLUDED.title,
@@ -107,6 +108,8 @@ export async function POST(
         wiki_refs = EXCLUDED.wiki_refs,
         card_order = EXCLUDED.card_order,
         tags = EXCLUDED.tags,
+        level = EXCLUDED.level,
+        topic_key = EXCLUDED.topic_key,
         published_version_id = EXCLUDED.published_version_id,
         published_at = now()
     `;
