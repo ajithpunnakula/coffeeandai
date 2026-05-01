@@ -11,7 +11,11 @@ import TutorPanel from "./TutorPanel";
 import NavHint from "./NavHint";
 import MasteryCheckpoint from "./MasteryCheckpoint";
 import XpToast from "./XpToast";
+import PracticeInterstitial from "./PracticeInterstitial";
+import PracticeRoundModal from "./PracticeRoundModal";
 import { getRemediationCards } from "@/lib/adaptive-router";
+import { usePracticeTrigger } from "@/lib/usePracticeTrigger";
+import type { PracticeRound } from "@/lib/practice-generator";
 
 interface LearnerProfile {
   domain_mastery: Record<string, number>;
@@ -82,6 +86,11 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
   // Track quiz scores client-side so checkpoints work even without a profile
   const [quizScores, setQuizScores] = useState<Record<string, number>>({});
   const [xpToast, setXpToast] = useState<{ xp: number; badges?: Array<{ id: string; name: string; icon: string }>; key: number } | null>(null);
+
+  // Phase-5 adaptive practice — sessionStorage-only, never writes to DB.
+  const practiceTrigger = usePracticeTrigger();
+  const [practiceRound, setPracticeRound] = useState<PracticeRound | null>(null);
+  const [practiceLoading, setPracticeLoading] = useState(false);
 
   const isAdaptive = learnerProfile != null && Object.keys(learnerProfile.domain_mastery).length > 0;
 
@@ -177,6 +186,40 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
         : [];
 
       setCheckpoint({ domain, mastery, passed, remediationCardIds });
+
+      // Feed the per-domain practice trigger. Pure client-side; never writes
+      // to learner.card_progress (the round itself is ephemeral).
+      practiceTrigger.recordAnswer({
+        cardId: card.id,
+        domain,
+        type: card.card_type,
+        correct: passed,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  async function handlePracticeAccept() {
+    if (!practiceTrigger.evaluation.domain) return;
+    setPracticeLoading(true);
+    try {
+      const res = await fetch("/api/practice/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: practiceTrigger.evaluation.domain,
+          level: card.metadata?.level,
+        }),
+      });
+      if (res.ok) {
+        const round = (await res.json()) as PracticeRound;
+        setPracticeRound(round);
+      }
+    } catch {
+      /* fail silently — practice is supplemental */
+    } finally {
+      setPracticeLoading(false);
+      practiceTrigger.clearEvaluation();
     }
   }
 
@@ -382,6 +425,23 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
             </div>
           </div>
 
+          {/* Adaptive practice trigger — inline, ephemeral, never writes to DB. */}
+          {practiceTrigger.evaluation.shouldTrigger &&
+            practiceTrigger.evaluation.domain &&
+            !practiceRound && (
+              <PracticeInterstitial
+                domain={practiceTrigger.evaluation.domain}
+                reason={practiceTrigger.evaluation.reason ?? "manual"}
+                loading={practiceLoading}
+                onAccept={handlePracticeAccept}
+                onDecline={() => practiceTrigger.clearEvaluation()}
+                onDontAsk={() => {
+                  practiceTrigger.setSessionDontAsk(true);
+                  practiceTrigger.clearEvaluation();
+                }}
+              />
+            )}
+
           {/* Mastery checkpoint interstitial */}
           {checkpoint && (
             <MasteryCheckpoint
@@ -451,6 +511,16 @@ export default function CardPlayer({ cards, courseSlug, learnerProfile, initialC
 
       {xpToast && (
         <XpToast key={xpToast.key} xp={xpToast.xp} badges={xpToast.badges} />
+      )}
+
+      {practiceRound && (
+        <PracticeRoundModal
+          round={practiceRound}
+          domain={practiceTrigger.evaluation.domain ?? card.domain ?? "general"}
+          triggeredBy={practiceTrigger.evaluation.reason ?? "manual"}
+          storageKey={`practice-${practiceTrigger.evaluation.domain ?? card.domain ?? "general"}`}
+          onClose={() => setPracticeRound(null)}
+        />
       )}
     </>
   );

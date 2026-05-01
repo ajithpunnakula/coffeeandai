@@ -161,3 +161,25 @@ Final state on `https://coffeeandai.xyz`:
 - **Notes**:
   - The Clerk app is shared between dev + prod (same `pk_test_*` / `sk_test_*` keys; Neon DB is shared too). Test users now exist as real users in the prod Clerk app — visible in the Clerk dashboard and as rows in `learner.users` (display_name `Test Learner` / `Test Author`). They are the only mechanism by which `data-cert="issued"` can render against prod.
   - The Phase-3 authed spec creates and tears down a transient `e2e-authed-path` learning path on prod each run. The Phase-4 authed spec writes idempotent progress for the test learner against the `demo-path` fixture; rows accumulate but never duplicate.
+
+---
+
+## Follow-up: practice trigger auto-integration into CardPlayer (Phase 5 deferred)
+
+- **Branch**: `phase-5-followup-cardplayer-trigger`
+- **PR**: TBD
+- **Implementation**:
+  - `web/src/components/PracticeInterstitial.tsx`: new inline interstitial with Yes / Not now / Don't ask again. Per-reason copy (hard streak / soft accuracy / manual). Carries `data-practice-interstitial`, `data-practice-trigger-reason`, `data-practice-trigger-domain` for deterministic E2E selectors.
+  - `web/src/components/CardPlayer.tsx`: mounts `usePracticeTrigger`, calls `recordAnswer({ cardId, domain, type, correct: score >= pass_threshold, timestamp })` on every quiz/scenario completion (alongside the existing checkpoint flow). Renders `<PracticeInterstitial>` when `evaluation.shouldTrigger`. Accept fetches `/api/practice/generate` with `domain` (+ `level` from card metadata if present), then opens `<PracticeRoundModal>`. Decline clears the evaluation. Don't-ask sets `setSessionDontAsk(true)` and clears.
+  - Store: practice round + loading state are local component state. The trigger hook owns sessionStorage; the modal owns its own sessionStorage key. Nothing is written to `learner.card_progress` during the practice flow — the practice surface only fetches `/api/practice/generate`, never `/api/progress`.
+- **Acceptance**:
+  - Vitest (new): `__tests__/components/PracticeInterstitial.test.tsx` (5 tests — render + Accept + Decline + Don't ask + loading-disabled).
+  - Vitest (new): `__tests__/components/CardPlayer-practice-trigger.test.tsx` (3 tests — interstitial appears after 3 wrong quiz answers same domain; Decline closes without `/api/practice/generate` fetch; Accept fetches `/api/practice/generate`, opens modal, and emits no `/api/progress` write during the practice flow). Mocks framer-motion + TutorPanel + NavHint + global fetch.
+  - Vitest total: 240/240 (was 232; +8 new).
+  - Lint: 105 errors / 11 warnings — baseline preserved.
+  - `npx tsc --noEmit`: 4 pre-existing errors in `__tests__/components/ScenarioCard.test.tsx`; none in any new file.
+  - Playwright local against prod (pre-deploy regression check, with authed env): 24/24 pass.
+- **Live verification (prod)**: pending Vercel deploy after merge. The existing Phase-5 practice specs continue to pass; the new CardPlayer wiring will be exercised on the next /play visit by a real learner. The vitest integration tests pin the no-DB-writes invariant.
+- **Notes**:
+  - The `<ExtraPracticeButton>` (Phase-5 manual surface) is still mounted on QuizCard / ScenarioCard. Both manual and auto trigger paths now coexist; the trigger hook is shared between them through sessionStorage, so suppression / don't-ask state carries between auto + manual triggers.
+  - When auto-trigger fires inside CardPlayer, the existing MasteryCheckpoint also renders for the same answer. They live in the same column (interstitial above the checkpoint); the learner can act on either independently. We do not block one on the other since they answer different questions ("are you struggling, want extra practice?" vs. "did you pass this domain's threshold?").
