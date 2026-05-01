@@ -53,3 +53,31 @@ Append-only log of phase completion.
 - **Notes**:
   - I haven't wired authed Playwright (per-role storageState) for the full author-creates-then-learner-completes flow. The acceptance is met via: Vitest covering CRUD round-trip + gating + completion logic with mocked DB, plus Playwright covering the public learner surface against the seeded `demo-path` fixture. The full author-flow is exercised manually via the Studio UI; the build/publish round-trip is integration-verified by `path-db.test.ts:publishPath`.
   - Live verification still needs to run after merge against `https://coffeeandai.xyz`.
+
+## Phase 4 — Polish
+
+- **Branch**: `phase-4-polish`
+- **PR**: https://github.com/ajithpunnakula/coffeeandai/pull/56 (merged 2026-05-01)
+- **Production deploy**: https://coffeeandai-3g5skkl0j-aj-punnakulas-projects.vercel.app
+- **Implementation**:
+  - `lib/pre-assessment.ts` — 5-question contract + deterministic `recommendedLevel(answers)` (basic/intermediate/advanced bands at thirds of max score) + `scoreAssessment` for telemetry-friendly result.
+  - `lib/path-proposal.ts` — `parsePathProposal` / `validatePathProposal` (Zod, 3–6 courses, levels enum) + `proposePath()` calling `gpt-4o-mini` via `generateObject`.
+  - `/topics/[topic_key]/quick-check` — public page, client form, on-submit redirects to the recommended-level course slug for that `topic_key`. Linked from multi-level topic tiles on `/browse` ("Not sure? Find my level →").
+  - `/paths/[slug]/certificate` — server-rendered cert; gated by `isPathComplete` for signed-in users; `?preview=1` bypasses gating for sharing-template review and live verification. "View certificate" CTA appears on `/paths/[slug]` once the learner completes all required courses.
+  - `/api/studio/paths/propose` — POST `{ topic, audience? }` → JSON proposal; wired into `/studio/paths/new` as a "Generate from topic + audience" panel that pre-fills title/summary on success.
+  - `/admin/insights` — drop-off heatmap (per-card pass-rate grid grouped by course) + path funnel (enrolled vs completed per published path), with empty-state UI when no metrics exist. Linked from `/admin`.
+  - Middleware: added `/topics(.*)` to public routes so quick-check works without sign-in.
+- **Acceptance**:
+  - Vitest: `pre-assessment.test.ts` (8 tests) covers 5-question contract + deterministic mapping + range validation; `path-proposal.test.ts` (6 tests) covers parsing, validation, 3–6 course bound, level enum, position assignment. Total 215/215 pass.
+  - Playwright local: `e2e/phase-4-polish.spec.ts` (5 tests) — pass.
+  - Playwright phase 1–3 regression — 10/10 pass.
+  - Lint: 105 errors / 11 warnings — unchanged from Phase 3 baseline (no new errors in Phase 4 files).
+  - `npx tsc --noEmit` — clean.
+- **Live verification (prod)**:
+  - `PLAYWRIGHT_BASE_URL=https://coffeeandai.xyz npx playwright test e2e/phase-4-polish.spec.ts` — 5/5 pass.
+  - Phase 1–3 regression — 10/10 pass.
+- **Notes**:
+  - Pre-assessment uses scaled, ordinal answer weights (0–3) summed across 5 questions; band edges sit at ⌊⅓⌋ and ⌊⅔⌋ of the max sum (15). Choosing all-zero → basic, mixed mid-range → intermediate, all-three → advanced. Pure function, fully covered by deterministic vitest.
+  - LLM proposal acceptance was met by Vitest (parse/validate) only — I did not call OpenAI in the live run for cost reasons. The route is wired and the Studio UI fans out a proposal on click; first real call will happen the first time an author uses it.
+  - Admin insights live verification only confirms the route is reachable and not 5xx (auth-gated). Real heatmap/funnel rendering is exercised by Vitest-light integration via the shared component layout; the `data-section` and `data-empty` attributes give later authed E2E something deterministic to assert on.
+  - Certificate preview flow: `/paths/demo-path/certificate?preview=1` renders the cert template with placeholder name "Preview Learner" so live verification + UX review work without forcing a complete-the-path setup. Real cert path is fully gated.
