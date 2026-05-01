@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
@@ -152,7 +153,7 @@ describe("Phase 3 — path CRUD (mocked DB)", () => {
     });
     (getDb as any).mockReturnValue(sql);
 
-    const published = await publishPath("k", "u1");
+    const published = await publishPath("k");
     const sqlText = sql.calls.join("\n");
 
     expect(published).toBeTruthy();

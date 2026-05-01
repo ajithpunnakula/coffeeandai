@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { neon } from "@neondatabase/serverless";
-import { groupCoursesByTopic, type CatalogCourse, type CatalogLevel } from "@/lib/catalog";
+import {
+  groupCoursesByTopic,
+  type CatalogCourse,
+  type CatalogLevel,
+} from "@/lib/catalog";
 
 export const metadata: Metadata = {
   title: "Browse",
@@ -41,7 +45,40 @@ function levelLabel(l: CatalogLevel) {
   return l.charAt(0).toUpperCase() + l.slice(1);
 }
 
-export default async function BrowsePage() {
+type Tab = "paths" | "courses";
+
+interface CourseRow {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  estimated_minutes: number | null;
+  pass_threshold: number | null;
+  domains: unknown;
+  card_count: number | string;
+  level: string | null;
+  topic_key: string | null;
+}
+
+interface PathRow {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  audience: string | null;
+  level: string | null;
+  estimated_minutes: number | null;
+  course_count: number | string;
+}
+
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const tab: Tab = sp.tab === "courses" ? "courses" : "paths";
+
   const { userId } = await auth();
   const sql = getDb();
 
@@ -55,7 +92,7 @@ export default async function BrowsePage() {
     ORDER BY c.published_at DESC
   `;
 
-  const catalogCourses: CatalogCourse[] = courses.map((c: any) => ({
+  const catalogCourses: CatalogCourse[] = courses.map((c: CourseRow) => ({
     id: String(c.id),
     slug: String(c.slug),
     title: String(c.title),
@@ -72,6 +109,16 @@ export default async function BrowsePage() {
   }));
 
   const tiles = groupCoursesByTopic(catalogCourses);
+
+  const paths = await sql`
+    SELECT lp.id, lp.slug, lp.title, lp.summary, lp.audience, lp.level,
+           lp.estimated_minutes,
+           (SELECT count(*)::int FROM content.learning_path_courses
+              WHERE path_id = lp.id) AS course_count
+    FROM content.learning_paths lp
+    WHERE lp.status = 'published'
+    ORDER BY lp.published_at DESC NULLS LAST, lp.created_at DESC
+  `;
 
   const socialRows = await sql`
     SELECT
@@ -139,7 +186,7 @@ export default async function BrowsePage() {
             <span className="text-gray-100">one card at a time</span>
           </h1>
           <p className="text-lg text-gray-400 max-w-xl mb-8">
-            Interactive, bite-sized courses to prepare you for AI certifications.
+            Interactive, bite-sized courses and learning paths to prepare you for AI certifications.
             Learn by doing with quizzes, scenarios, and an AI tutor by your side.
           </p>
           <div className="flex gap-3 text-sm text-gray-500">
@@ -157,161 +204,239 @@ export default async function BrowsePage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-4 pb-16">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-6">
-          Available Courses
-        </h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {tiles.map((tile) => {
-            const primary = tile.levels[0];
-            const isLevelTile = tile.topic_key !== null;
-            const domains: { name: string; weight: number }[] = tile.domains ?? [];
-            const social = socialMap[primary.slug];
-            const enrolled = enrolledSlugs.has(primary.slug);
-            const progress = progressMap[primary.slug];
-            const progressPct =
-              progress && progress.total > 0
-                ? Math.round((progress.completed / progress.total) * 100)
-                : 0;
+        <div className="flex gap-2 mb-6 border-b border-gray-800">
+          <Link
+            href="/browse?tab=paths"
+            data-tab="paths"
+            data-active={tab === "paths" ? "true" : "false"}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              tab === "paths"
+                ? "text-amber-400 border-b-2 border-amber-500"
+                : "text-gray-400 hover:text-gray-200 border-b-2 border-transparent"
+            }`}
+          >
+            Paths ({paths.length})
+          </Link>
+          <Link
+            href="/browse?tab=courses"
+            data-tab="courses"
+            data-active={tab === "courses" ? "true" : "false"}
+            className={`px-4 py-3 text-sm font-medium transition-colors ${
+              tab === "courses"
+                ? "text-amber-400 border-b-2 border-amber-500"
+                : "text-gray-400 hover:text-gray-200 border-b-2 border-transparent"
+            }`}
+          >
+            Courses ({tiles.length})
+          </Link>
+        </div>
 
-            const tileWrapperProps = isLevelTile && tile.levels.length > 1
-              ? { as: "div" as const }
-              : { as: "link" as const, href: `/courses/${primary.slug}` };
-
-            const inner = (
-              <div className="group relative rounded-2xl border border-gray-800 bg-gray-900/50 hover:bg-gray-900 hover:border-gray-700 transition-all duration-200 overflow-hidden flex flex-col h-full">
-                <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-600" />
-                <div className="p-6 flex flex-col flex-1">
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {domains.slice(0, 3).map((d, i) => (
-                      <span
-                        key={i}
-                        className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5"
-                      >
-                        {getDomainIcon(d.name)} {d.name.split("&")[0].trim()}
-                      </span>
-                    ))}
-                    {domains.length > 3 && (
-                      <span className="text-xs text-gray-500">
-                        +{domains.length - 3} more
-                      </span>
+        {tab === "paths" ? (
+          paths.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {(paths as PathRow[]).map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/paths/${p.slug}`}
+                  className="block group rounded-2xl border border-gray-800 bg-gray-900/50 hover:bg-gray-900 hover:border-gray-700 transition-all overflow-hidden"
+                >
+                  <div className="h-1 bg-gradient-to-r from-emerald-500 to-amber-500" />
+                  <div className="p-6 flex flex-col h-full">
+                    <h3 className="text-xl font-bold text-gray-100 group-hover:text-amber-400 transition-colors mb-1">
+                      {p.title}
+                    </h3>
+                    {p.summary && (
+                      <p className="text-sm text-gray-400 line-clamp-2 mb-3">
+                        {p.summary}
+                      </p>
                     )}
-                  </div>
-
-                  <h3 className="text-xl font-bold text-gray-100 group-hover:text-amber-400 transition-colors mb-2">
-                    {tile.title}
-                  </h3>
-
-                  {tile.summary && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">
-                      {tile.summary}
-                    </p>
-                  )}
-
-                  <div className="mt-auto">
-                    {tile.levels.length > 1 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {tile.levels.map((lv) => (
-                          <Link
-                            key={lv.slug}
-                            href={`/courses/${lv.slug}`}
-                            data-level-pill={lv.level ?? "none"}
-                            className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
-                          >
-                            {levelLabel(lv.level) ?? "Course"}
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 mb-4 flex-wrap">
-                          <span>{primary.card_count} cards</span>
+                    <div className="text-xs text-gray-500 flex items-center gap-3 flex-wrap mt-auto">
+                      <span>{p.course_count} courses</span>
+                      {p.estimated_minutes && (
+                        <>
                           <span className="w-1 h-1 rounded-full bg-gray-700" />
-                          <span>{primary.estimated_minutes} min</span>
-                          {primary.level && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-gray-700" />
-                              <span
-                                className="text-amber-300"
-                                data-level-pill={primary.level}
-                              >
-                                {levelLabel(primary.level)}
-                              </span>
-                            </>
-                          )}
-                          {social && social.enrolled > 0 && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-gray-700" />
-                              <span>{social.enrolled} enrolled</span>
-                            </>
-                          )}
-                          {social && social.passRate != null && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-gray-700" />
-                              <span className="text-emerald-400">
-                                {social.passRate}% pass rate
-                              </span>
-                            </>
-                          )}
-                        </div>
+                          <span>{p.estimated_minutes} min</span>
+                        </>
+                      )}
+                      {p.audience && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-gray-700" />
+                          <span>{p.audience}</span>
+                        </>
+                      )}
+                      {p.level && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-gray-700" />
+                          <span data-level-pill={p.level} className="text-amber-300">
+                            {levelLabel(p.level)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No published paths yet.</p>
+          )
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {tiles.map((tile) => {
+              const primary = tile.levels[0];
+              const isLevelTile = tile.topic_key !== null;
+              const domains: { name: string; weight: number }[] =
+                tile.domains ?? [];
+              const social = socialMap[primary.slug];
+              const enrolled = enrolledSlugs.has(primary.slug);
+              const progress = progressMap[primary.slug];
+              const progressPct =
+                progress && progress.total > 0
+                  ? Math.round((progress.completed / progress.total) * 100)
+                  : 0;
 
-                        {enrolled && progress ? (
-                          <div>
-                            <div className="flex justify-between text-xs mb-1.5">
-                              <span className="text-gray-400">
-                                {progress.completed} / {progress.total} completed
-                              </span>
-                              <span className="text-amber-400 font-medium">
-                                {progressPct}%
-                              </span>
-                            </div>
-                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center text-sm font-medium text-amber-400 group-hover:text-amber-300">
-                            Start learning
-                            <svg
-                              className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 7l5 5m0 0l-5 5m5-5H6"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </>
+              const tileWrapperProps =
+                isLevelTile && tile.levels.length > 1
+                  ? { as: "div" as const }
+                  : { as: "link" as const, href: `/courses/${primary.slug}` };
+
+              const inner = (
+                <div className="group relative rounded-2xl border border-gray-800 bg-gray-900/50 hover:bg-gray-900 hover:border-gray-700 transition-all duration-200 overflow-hidden flex flex-col h-full">
+                  <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-600" />
+                  <div className="p-6 flex flex-col flex-1">
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {domains.slice(0, 3).map((d, i) => (
+                        <span
+                          key={i}
+                          className="text-xs bg-gray-800 text-gray-400 rounded-full px-2 py-0.5"
+                        >
+                          {getDomainIcon(d.name)} {d.name.split("&")[0].trim()}
+                        </span>
+                      ))}
+                      {domains.length > 3 && (
+                        <span className="text-xs text-gray-500">
+                          +{domains.length - 3} more
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-xl font-bold text-gray-100 group-hover:text-amber-400 transition-colors mb-2">
+                      {tile.title}
+                    </h3>
+
+                    {tile.summary && (
+                      <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                        {tile.summary}
+                      </p>
                     )}
+
+                    <div className="mt-auto">
+                      {tile.levels.length > 1 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {tile.levels.map((lv) => (
+                            <Link
+                              key={lv.slug}
+                              href={`/courses/${lv.slug}`}
+                              data-level-pill={lv.level ?? "none"}
+                              className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                            >
+                              {levelLabel(lv.level) ?? "Course"}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 mb-4 flex-wrap">
+                            <span>{primary.card_count} cards</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-700" />
+                            <span>{primary.estimated_minutes} min</span>
+                            {primary.level && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-gray-700" />
+                                <span
+                                  className="text-amber-300"
+                                  data-level-pill={primary.level}
+                                >
+                                  {levelLabel(primary.level)}
+                                </span>
+                              </>
+                            )}
+                            {social && social.enrolled > 0 && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-gray-700" />
+                                <span>{social.enrolled} enrolled</span>
+                              </>
+                            )}
+                            {social && social.passRate != null && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-gray-700" />
+                                <span className="text-emerald-400">
+                                  {social.passRate}% pass rate
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {enrolled && progress ? (
+                            <div>
+                              <div className="flex justify-between text-xs mb-1.5">
+                                <span className="text-gray-400">
+                                  {progress.completed} / {progress.total}{" "}
+                                  completed
+                                </span>
+                                <span className="text-amber-400 font-medium">
+                                  {progressPct}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-sm font-medium text-amber-400 group-hover:text-amber-300">
+                              Start learning
+                              <svg
+                                className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-
-            if (tileWrapperProps.as === "link") {
-              return (
-                <Link
-                  key={tile.topic_key ?? primary.slug}
-                  href={tileWrapperProps.href}
-                  className="block"
-                >
-                  {inner}
-                </Link>
               );
-            }
-            return (
-              <div key={tile.topic_key ?? primary.slug}>{inner}</div>
-            );
-          })}
-        </div>
+
+              if (tileWrapperProps.as === "link") {
+                return (
+                  <Link
+                    key={tile.topic_key ?? primary.slug}
+                    href={tileWrapperProps.href}
+                    className="block"
+                  >
+                    {inner}
+                  </Link>
+                );
+              }
+              return (
+                <div key={tile.topic_key ?? primary.slug}>{inner}</div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </main>
   );
