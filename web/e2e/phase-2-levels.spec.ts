@@ -4,7 +4,7 @@ test.describe("Phase 2 — level pills on /browse", () => {
   test("topic-tile with three level pills renders for the demo-topic fixture", async ({
     page,
   }) => {
-    await page.goto("/browse");
+    await page.goto("/browse?tab=courses");
 
     // The Phase 2 fixture seeds three level variants of "demo-topic".
     const pills = page.locator(
@@ -15,7 +15,7 @@ test.describe("Phase 2 — level pills on /browse", () => {
   });
 
   test("clicking a level pill opens the matching course", async ({ page }) => {
-    await page.goto("/browse");
+    await page.goto("/browse?tab=courses");
     const pill = page.locator('[data-level-pill="basic"]').first();
     await pill.click();
     await expect(page).toHaveURL(/\/courses\/demo-topic-basic/);
