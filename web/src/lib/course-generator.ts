@@ -2,7 +2,9 @@ import { generateObject, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { getDb } from "./db";
-import { generateCardId } from "./draft-db";
+import { generateCardId, slugify } from "./draft-db";
+
+export type Level = "basic" | "intermediate" | "advanced";
 
 const coursePlanSchema = z.object({
   title: z.string(),
@@ -28,12 +30,16 @@ const coursePlanSchema = z.object({
 
 export type CoursePlan = z.infer<typeof coursePlanSchema>;
 
-export async function planCourse(
-  topic: string,
-  wikiContent: string | null,
-  examTarget: string | null,
-): Promise<CoursePlan> {
-  const prompt = buildPlanPrompt(topic, wikiContent, examTarget);
+export interface PlanCourseOptions {
+  topic: string;
+  level: Level | null;
+  audience?: string | null;
+  wikiContent?: string | null;
+  examTarget?: string | null;
+}
+
+export async function planCourse(opts: PlanCourseOptions): Promise<CoursePlan> {
+  const prompt = buildPlanPrompt(opts);
 
   const result = await generateObject({
     model: openai("gpt-4o-mini"),
@@ -42,6 +48,15 @@ export async function planCourse(
   });
 
   return result.object;
+}
+
+export function topicKeyFor(topic: string): string {
+  return slugify(topic);
+}
+
+export function derivePlannedSlug(topic: string, level: Level | null): string {
+  const base = slugify(topic);
+  return level ? `${base}-${level}` : base;
 }
 
 export async function generateCardContent(
@@ -144,11 +159,32 @@ export async function saveDraftCard(
   return id;
 }
 
-function buildPlanPrompt(
-  topic: string,
-  wikiContent: string | null,
-  examTarget: string | null,
-): string {
+const LEVEL_GUIDANCE: Record<Level, string> = {
+  basic: [
+    `Audience: complete beginners with little to no prior exposure.`,
+    `Tone: introductory and foundational. Define every term on first use.`,
+    `Bloom level: remember/understand. Card difficulty should sit in the 0-1 range (low difficulty).`,
+    `Examples: use the simplest, most concrete cases. Avoid edge cases.`,
+    `Assumed prerequisites: none beyond basic familiarity with computers.`,
+  ].join("\n"),
+  intermediate: [
+    `Audience: learners with working knowledge — they have read intro material or shipped toy projects.`,
+    `Tone: practitioner-oriented; treat fundamentals as known.`,
+    `Bloom level: apply/analyze. Card difficulty should sit in the 1-2 range.`,
+    `Examples: realistic but bounded scenarios. Compare alternatives.`,
+    `Assumed prerequisites: completion of a basic course on the same topic.`,
+  ].join("\n"),
+  advanced: [
+    `Audience: experienced practitioners going deep.`,
+    `Tone: expert; assume fluency with foundational vocabulary.`,
+    `Bloom level: analyze/evaluate. Card difficulty should sit in the 2-3 range.`,
+    `Examples: edge cases, performance, multi-component tradeoffs, failure modes.`,
+    `Assumed prerequisites: an intermediate-level grasp of the topic.`,
+  ].join("\n"),
+};
+
+export function buildPlanPrompt(opts: PlanCourseOptions): string {
+  const { topic, level, audience, wikiContent, examTarget } = opts;
   const parts = [
     `Design a comprehensive training course on: "${topic}"`,
     `Create a structured course with a mix of card types:`,
@@ -161,6 +197,14 @@ function buildPlanPrompt(
     `Each domain should have page cards followed by quiz/scenario assessment.`,
     `End with a reflection card.`,
   ];
+
+  if (level) {
+    parts.push("", `## Level: ${level}`, LEVEL_GUIDANCE[level]);
+  }
+
+  if (audience) {
+    parts.push("", `## Target audience\n${audience}`);
+  }
 
   if (examTarget) {
     parts.push(`\nExam target: ${examTarget}`);

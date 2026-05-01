@@ -83,13 +83,15 @@ export async function clonePublishedToDraft(
     INSERT INTO content.course_drafts (
       slug, title, summary, exam_target, target_audience,
       estimated_minutes, pass_threshold, domains, wiki_refs,
-      card_order, tags, created_by
+      card_order, tags, level, topic_key, created_by
     ) VALUES (
       ${course.slug}, ${course.title}, ${course.summary},
       ${course.exam_target}, ${course.target_audience},
       ${course.estimated_minutes}, ${course.pass_threshold},
       ${course.domains != null ? JSON.stringify(course.domains) : null}, ${course.wiki_refs},
-      ${course.card_order}, ${course.tags}, ${userId}
+      ${course.card_order}, ${course.tags},
+      ${course.level ?? null}, ${course.topic_key ?? null},
+      ${userId}
     )
     ON CONFLICT (slug) DO UPDATE SET
       title = EXCLUDED.title,
@@ -102,6 +104,8 @@ export async function clonePublishedToDraft(
       wiki_refs = EXCLUDED.wiki_refs,
       card_order = EXCLUDED.card_order,
       tags = EXCLUDED.tags,
+      level = EXCLUDED.level,
+      topic_key = EXCLUDED.topic_key,
       updated_at = now()
     RETURNING *
   `;
@@ -157,6 +161,8 @@ export async function updateDraft(
     "wiki_refs",
     "card_order",
     "tags",
+    "level",
+    "topic_key",
   ];
 
   const updates: Record<string, any> = {};
@@ -179,6 +185,8 @@ export async function updateDraft(
       wiki_refs = COALESCE(${updates.wiki_refs ?? null}, wiki_refs),
       card_order = COALESCE(${updates.card_order ?? null}, card_order),
       tags = COALESCE(${updates.tags ?? null}, tags),
+      level = COALESCE(${updates.level ?? null}, level),
+      topic_key = COALESCE(${updates.topic_key ?? null}, topic_key),
       updated_at = now()
     WHERE slug = ${slug}
     RETURNING *
