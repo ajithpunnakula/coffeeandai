@@ -7,6 +7,7 @@ import {
   type CatalogCourse,
   type CatalogLevel,
 } from "@/lib/catalog";
+import MultiLevelTopicCard from "@/components/MultiLevelTopicCard";
 
 export const metadata: Metadata = {
   title: "Browse",
@@ -443,7 +444,16 @@ export default async function BrowsePage({
                 );
               }
               return (
-                <div key={tile.topic_key ?? primary.slug}>{inner}</div>
+                <MultiLevelTopicCard
+                  key={tile.topic_key ?? primary.slug}
+                  levels={tile.levels.map((lv) => ({
+                    slug: lv.slug,
+                    level: lv.level ?? null,
+                  }))}
+                  topicKey={tile.topic_key}
+                >
+                  {inner}
+                </MultiLevelTopicCard>
               );
             })}
           </div>
