@@ -74,6 +74,7 @@ describe("Phase 4 — LLM path proposal", () => {
   it("assigns 1-based positions in the order courses appear", () => {
     const proposal = parsePathProposal({
       title: "T",
+      summary: null,
       courses: [
         { title: "A", level: "basic", required: true },
         { title: "B", level: "intermediate", required: true },
@@ -81,5 +82,21 @@ describe("Phase 4 — LLM path proposal", () => {
       ],
     });
     expect(proposal.courses.map((c) => c.position)).toEqual([1, 2, 3]);
+  });
+
+  it("accepts null summary so the schema satisfies OpenAI structured outputs", () => {
+    // Regression: without `.nullable()` (i.e., using `.optional()` only)
+    // OpenAI rejects the schema with "Missing 'summary'". Keep this test to
+    // pin the contract — every property must be in `required`.
+    const proposal = parsePathProposal({
+      title: "T",
+      summary: null,
+      courses: [
+        { title: "A", level: "basic", required: true },
+        { title: "B", level: "intermediate", required: true },
+        { title: "C", level: "advanced", required: false },
+      ],
+    });
+    expect(proposal.summary).toBeNull();
   });
 });
