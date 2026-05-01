@@ -183,3 +183,25 @@ Final state on `https://coffeeandai.xyz`:
 - **Notes**:
   - The `<ExtraPracticeButton>` (Phase-5 manual surface) is still mounted on QuizCard / ScenarioCard. Both manual and auto trigger paths now coexist; the trigger hook is shared between them through sessionStorage, so suppression / don't-ask state carries between auto + manual triggers.
   - When auto-trigger fires inside CardPlayer, the existing MasteryCheckpoint also renders for the same answer. They live in the same column (interstitial above the checkpoint); the learner can act on either independently. We do not block one on the other since they answer different questions ("are you struggling, want extra practice?" vs. "did you pass this domain's threshold?").
+
+---
+
+## Follow-up: live LLM smoke runs (Phase 2 + Phase 4 deferred)
+
+- **Branch**: `followup-live-llm-smoke`
+- **PR**: TBD
+- **Bug surfaced + fixed**: `lib/path-proposal.ts`'s Zod schema declared `summary` as `z.string().optional().nullable()`, which renders to JSON Schema with `summary` absent from `required`. OpenAI's structured-output API rejects schemas where any property is missing from `required` ("Invalid schema for response_format … Missing 'summary'."). Phase-4's original Vitest acceptance never called OpenAI for cost reasons, so this never surfaced. Fix: drop `.optional()`, keep `.nullable()` (Zod renders this as `type: ["string", "null"]`, which OpenAI accepts and the schema treats `summary` as required). Pinned by a new regression test `path-proposal.test.ts:accepts null summary so the schema satisfies OpenAI structured outputs`.
+- **Smoke harness**: new `web/e2e/smoke-llm-prod.spec.ts`, gated on `SMOKE_LLM=1`. Two tests:
+  - **Phase 2** — POST `/api/studio/generate` three times in parallel for `topic="Kubernetes"` × `level=basic|intermediate|advanced`; assert 3 `course_drafts` with `topic_key='kubernetes'` and distinct slugs/levels; cleans up before + after.
+  - **Phase 4** — POST `/api/studio/paths/propose` once with `topic="Kubernetes"`, `audience="platform engineers"`; assert 3–6 ordered `courses`, each with a valid level enum.
+- **Live verification (prod)**:
+  - **Phase 2** ran end-to-end against `https://coffeeandai.xyz` once (pre-fix): 3 drafts created, 208.4s wall (3 parallel SSE streams), passed all assertions, cleaned up. Estimated cost: ≈ $0.03 (gpt-4o-mini, ~30K input + ~10K output tokens per draft × 3 drafts; pricing $0.15/M in, $0.60/M out).
+  - **Phase 4** blocked pre-fix (500 from OpenAI rejecting the schema). Pending re-run after this PR's bug fix deploys to prod. Estimated cost: ≈ $0.001 (one short structured-output call).
+- **Acceptance**:
+  - Vitest: 241/241 (was 240; +1 regression test).
+  - Lint: 105 errors / 11 warnings — baseline preserved.
+  - `npx tsc --noEmit`: 4 pre-existing errors; none in any new file.
+  - Playwright local against prod (without `SMOKE_LLM`): 24 passed + 2 skipped (smoke spec self-skips).
+- **Notes**:
+  - The Phase-4 path-proposal bug had likely been latent since the Phase-4 PR shipped — the UI's "Generate from topic + audience" panel on `/studio/paths/new` would have always 500'd on real use. The fix lets this path actually work in production.
+  - Smoke spec is opt-in (`SMOKE_LLM=1`) and never runs in CI — it costs cents per run and the project carries no per-PR LLM-cost budget.

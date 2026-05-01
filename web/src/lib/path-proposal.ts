@@ -23,9 +23,12 @@ const courseSchema = z.object({
   required: z.boolean(),
 });
 
+// Note: every property must appear in `required` for OpenAI's structured
+// output API to accept the schema. Use `.nullable()` (not `.optional()`)
+// for fields that may be absent — Zod renders that as type ["string", "null"].
 const proposalSchema = z.object({
   title: z.string().min(1),
-  summary: z.string().optional().nullable(),
+  summary: z.string().nullable(),
   courses: z.array(courseSchema).min(3).max(6),
 });
 
