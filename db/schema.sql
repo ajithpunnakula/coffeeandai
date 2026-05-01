@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS content.courses (
   topic_key TEXT,
   source_hash TEXT,
   git_commit TEXT,
+  published_version_id UUID,
   published_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -97,6 +98,12 @@ CREATE TABLE IF NOT EXISTS learner.users (
   clerk_id TEXT UNIQUE NOT NULL,
   display_name TEXT,
   role TEXT DEFAULT 'learner',
+  -- Gamification (XP, streaks, badges) — populated by /api/progress on card complete.
+  total_xp INT DEFAULT 0,
+  current_streak INT DEFAULT 0,
+  longest_streak INT DEFAULT 0,
+  last_activity_date DATE,
+  badges JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -258,16 +265,6 @@ CREATE TABLE IF NOT EXISTS content.edit_history (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-ALTER TABLE content.courses ADD COLUMN IF NOT EXISTS published_version_id UUID;
-
--- Gamification columns on users
-ALTER TABLE learner.users
-  ADD COLUMN IF NOT EXISTS total_xp INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS current_streak INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS longest_streak INT DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS last_activity_date DATE,
-  ADD COLUMN IF NOT EXISTS badges JSONB DEFAULT '[]'::jsonb;
-
 -- XP ledger: append-only log of all XP earned
 CREATE TABLE IF NOT EXISTS learner.xp_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -287,18 +284,6 @@ CREATE TABLE IF NOT EXISTS learner.activity_days (
   cards_completed INT DEFAULT 1,
   PRIMARY KEY (user_id, activity_date)
 );
-
--- Phase 1: level + topic_key on courses + course_drafts (idempotent for existing DBs)
-ALTER TABLE content.courses
-  ADD COLUMN IF NOT EXISTS level TEXT,
-  ADD COLUMN IF NOT EXISTS topic_key TEXT;
-
-ALTER TABLE content.course_drafts
-  ADD COLUMN IF NOT EXISTS level TEXT,
-  ADD COLUMN IF NOT EXISTS topic_key TEXT;
-
--- Migrate any 'developer' role rows to 'author' (POC rename)
-UPDATE learner.users SET role = 'author' WHERE role = 'developer';
 
 -- Learning paths (Phase 1 plumbing — wired up in Phase 3)
 
