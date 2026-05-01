@@ -6,10 +6,9 @@ function getDb() {
   return neon(process.env.DATABASE_URL!);
 }
 
-type SqlFn = ReturnType<typeof neon>;
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 async function getOrCreateUser(
-  sql: SqlFn,
+  sql: any,
   clerkId: string,
   displayName?: string | null,
 ) {
@@ -25,6 +24,7 @@ async function getOrCreateUser(
     await sql`INSERT INTO learner.users (clerk_id, display_name) VALUES (${clerkId}, ${displayName ?? null}) RETURNING id`;
   return newRows[0].id;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export async function POST(request: Request) {
   try {

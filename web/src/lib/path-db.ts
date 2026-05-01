@@ -208,7 +208,9 @@ export async function publishPath(
   `;
   if (courseRows.length === 0) return null;
 
-  const slugs = courseRows.map((r: { course_slug: string }) => r.course_slug);
+  const slugs = (courseRows as unknown as Array<{ course_slug: string }>).map(
+    (r) => r.course_slug,
+  );
   const idRows = await sql`
     SELECT id, slug FROM content.courses WHERE slug = ANY(${slugs})
   `;

@@ -92,7 +92,7 @@ export default async function BrowsePage({
     ORDER BY c.published_at DESC
   `;
 
-  const catalogCourses: CatalogCourse[] = courses.map((c: CourseRow) => ({
+  const catalogCourses: CatalogCourse[] = (courses as unknown as CourseRow[]).map((c) => ({
     id: String(c.id),
     slug: String(c.slug),
     title: String(c.title),
@@ -102,7 +102,7 @@ export default async function BrowsePage({
     domains:
       typeof c.domains === "string"
         ? JSON.parse(c.domains)
-        : (c.domains ?? []),
+        : ((c.domains as { name: string; weight: number }[] | null) ?? []),
     card_count: Number(c.card_count ?? 0),
     level: (c.level as CatalogLevel) ?? null,
     topic_key: c.topic_key ?? null,
@@ -268,7 +268,7 @@ export default async function BrowsePage({
                         <>
                           <span className="w-1 h-1 rounded-full bg-gray-700" />
                           <span data-level-pill={p.level} className="text-amber-300">
-                            {levelLabel(p.level)}
+                            {levelLabel(p.level as CatalogLevel)}
                           </span>
                         </>
                       )}

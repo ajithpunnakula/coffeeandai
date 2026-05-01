@@ -61,6 +61,7 @@ export default async function EditPathPage({
         position: number;
         required: boolean | null;
       }>).map((r) => ({
+        slug: String(r.course_slug),
         course_slug: String(r.course_slug),
         title: r.title ?? r.course_slug,
         summary: r.summary ?? null,
