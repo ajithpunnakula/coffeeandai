@@ -127,3 +127,37 @@ Final state on `https://coffeeandai.xyz`:
 - `PLAYWRIGHT_BASE_URL=https://coffeeandai.xyz npx playwright test` — 21/21.
 - Lint: 105 errors / 11 warnings (pre-existing baseline; no Phase 1–5 file contributes).
 - `npx tsc --noEmit` — clean.
+
+---
+
+## Follow-up: authed Playwright wiring (Phase 1 deferred)
+
+- **Branch**: `phase-1-followup-authed-e2e`
+- **PR**: TBD (filled in once opened)
+- **Implementation**:
+  - `scripts/seed-test-users.ts` rewritten: now creates the canonical Clerk test users (`learner+clerk_test@coffeeandai.dev`, `author+clerk_test@coffeeandai.dev`) via the Clerk Backend REST API and mirrors them in `learner.users` with the right roles. `+clerk_test` emails auto-verify in test-mode Clerk apps. Loads env from `web/.env.development.local` via `process.loadEnvFile` so it works without manual export. Outputs eval-friendly KEY=VALUE lines.
+  - `web/playwright.global-setup.ts`: when `CLERK_TEST_LEARNER_EMAIL` and/or `CLERK_TEST_AUTHOR_EMAIL` are set, signs in via the email-based ticket strategy (`@clerk/testing` + Backend API) and writes per-role `storageState` to `web/.auth/learner.json` / `web/.auth/author.json`. Self-skips when env unset, so existing public-only runs are untouched.
+  - `web/e2e/_helpers/auth.ts`: shared `LEARNER_STATE` / `AUTHOR_STATE` paths + `hasLearnerAuth/hasAuthorAuth/hasBothAuth` checks + `NO_AUTH_REASON` message; authed specs use these to self-skip when storageState isn't generated (so unconfigured CI is non-breaking).
+  - `web/e2e/phase-3-paths.authed.spec.ts`: end-to-end author-creates-then-learner-completes — author POSTs draft → PATCHes courses → publishes; DB-state sanity-check after publish (caught a silent sign-in redirect during dev); learner enrolls, marks both required course cards complete, hits `/paths/<slug>/certificate`, asserts `data-cert="issued"`. Idempotent: `beforeAll`/`afterAll` clean up the test path.
+  - `web/e2e/phase-4-polish.authed.spec.ts`: signed-in learner against the seeded `demo-path` fixture — enrolls, completes both required courses, asserts cert renders `data-cert="issued"`. Idempotent via upsert on `/api/progress`; safe to run in parallel with Phase-3 authed.
+  - `web/e2e/phase-5-practice.authed.spec.ts`: pins the no-DB-writes invariant from the kickoff acceptance — counts `learner.card_progress` rows for the test learner, runs the full `/practice/preview` modal flow as a signed-in learner, counts again, asserts delta is zero.
+- **Why password strategy didn't work**: the Clerk app config has `email_address.first_factors=["email_code"]` only — password isn't a first factor. The email-based ticket strategy works because Clerk's testing helper creates a sign-in token via the Backend API and consumes it server-side; the only env requirement is `CLERK_SECRET_KEY` (already in `.env.development.local`).
+- **Acceptance**:
+  - Vitest: 232/232 unchanged.
+  - Lint: 105 errors / 11 warnings — baseline preserved.
+  - `npx tsc --noEmit`: 4 pre-existing errors in `__tests__/components/ScenarioCard.test.tsx` (last touched in `da2a2a5`, untouched by this branch); none in any new file.
+  - Playwright local against prod: 24/24 pass (21 existing + 3 new authed). The 3 new authed specs each run only when per-role `storageState` is generated; without it, they self-skip.
+- **Live verification (prod)**:
+  - `PLAYWRIGHT_BASE_URL=https://coffeeandai.xyz npx playwright test` with `CLERK_TEST_LEARNER_EMAIL`/`CLERK_TEST_AUTHOR_EMAIL` exported → 24/24 pass.
+- **How to re-run**:
+  ```bash
+  # 1. Ensure Clerk test users + learner.users rows exist (idempotent).
+  cd /Users/aj/code/coffeeandai
+  eval "$(npx tsx scripts/seed-test-users.ts | sed 's/^/export /')"
+  # 2. Run playwright with the env exported.
+  cd web
+  PLAYWRIGHT_BASE_URL=https://coffeeandai.xyz npx playwright test
+  ```
+- **Notes**:
+  - The Clerk app is shared between dev + prod (same `pk_test_*` / `sk_test_*` keys; Neon DB is shared too). Test users now exist as real users in the prod Clerk app — visible in the Clerk dashboard and as rows in `learner.users` (display_name `Test Learner` / `Test Author`). They are the only mechanism by which `data-cert="issued"` can render against prod.
+  - The Phase-3 authed spec creates and tears down a transient `e2e-authed-path` learning path on prod each run. The Phase-4 authed spec writes idempotent progress for the test learner against the `demo-path` fixture; rows accumulate but never duplicate.
