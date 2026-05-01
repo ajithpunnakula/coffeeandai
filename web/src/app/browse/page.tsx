@@ -332,17 +332,28 @@ export default async function BrowsePage({
 
                     <div className="mt-auto">
                       {tile.levels.length > 1 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {tile.levels.map((lv) => (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            {tile.levels.map((lv) => (
+                              <Link
+                                key={lv.slug}
+                                href={`/courses/${lv.slug}`}
+                                data-level-pill={lv.level ?? "none"}
+                                className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                              >
+                                {levelLabel(lv.level) ?? "Course"}
+                              </Link>
+                            ))}
+                          </div>
+                          {tile.topic_key && (
                             <Link
-                              key={lv.slug}
-                              href={`/courses/${lv.slug}`}
-                              data-level-pill={lv.level ?? "none"}
-                              className="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition-colors"
+                              href={`/topics/${tile.topic_key}/quick-check`}
+                              data-quick-check-link={tile.topic_key}
+                              className="inline-flex items-center text-xs text-amber-300 hover:text-amber-200"
                             >
-                              {levelLabel(lv.level) ?? "Course"}
+                              Not sure? Find my level →
                             </Link>
-                          ))}
+                          )}
                         </div>
                       ) : (
                         <>

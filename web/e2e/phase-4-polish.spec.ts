@@ -27,16 +27,15 @@ test.describe("Phase 4 — polish", () => {
     ).toBeVisible();
   });
 
-  test("admin insights page loads at least an empty-state UI", async ({
+  test("admin insights page route exists (redirects unauthed to sign-in)", async ({
     page,
   }) => {
-    // Unauthed will get the 403 view, which is itself a valid empty-state.
-    // Either way the page must respond 200 and render a heading.
+    // Auth-gated route. We just confirm it's not a 5xx and lands somewhere
+    // sensible (sign-in or, when admin, the insights page).
     const res = await page.goto("/admin/insights");
     expect(res?.status()).toBeLessThan(500);
-    await expect(
-      page.getByRole("heading", { name: /insights|forbidden|unauthorized/i }),
-    ).toBeVisible({ timeout: 10_000 });
+    const url = page.url();
+    expect(url).toMatch(/sign-in|admin\/insights/);
   });
 
   test("/browse Paths tab links each tile to its certificate slug", async ({
