@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { UserButton, SignInButton } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
 import { neon } from "@neondatabase/serverless";
+import SignInNavButton from "./SignInNavButton";
 
 async function getUserStats(clerkId: string) {
   try {
@@ -88,15 +89,7 @@ export default async function NavBar() {
               Developer
             </Link>
           )}
-          {userId ? (
-            <UserButton />
-          ) : (
-            <SignInButton>
-              <button className="text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors">
-                Sign in
-              </button>
-            </SignInButton>
-          )}
+          {userId ? <UserButton /> : <SignInNavButton />}
         </div>
       </div>
     </nav>
