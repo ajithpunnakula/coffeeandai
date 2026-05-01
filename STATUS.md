@@ -195,8 +195,8 @@ Final state on `https://coffeeandai.xyz`:
   - **Phase 2** — POST `/api/studio/generate` three times in parallel for `topic="Kubernetes"` × `level=basic|intermediate|advanced`; assert 3 `course_drafts` with `topic_key='kubernetes'` and distinct slugs/levels; cleans up before + after.
   - **Phase 4** — POST `/api/studio/paths/propose` once with `topic="Kubernetes"`, `audience="platform engineers"`; assert 3–6 ordered `courses`, each with a valid level enum.
 - **Live verification (prod)**:
-  - **Phase 2** ran end-to-end against `https://coffeeandai.xyz` once (pre-fix): 3 drafts created, 208.4s wall (3 parallel SSE streams), passed all assertions, cleaned up. Estimated cost: ≈ $0.03 (gpt-4o-mini, ~30K input + ~10K output tokens per draft × 3 drafts; pricing $0.15/M in, $0.60/M out).
-  - **Phase 4** blocked pre-fix (500 from OpenAI rejecting the schema). Pending re-run after this PR's bug fix deploys to prod. Estimated cost: ≈ $0.001 (one short structured-output call).
+  - **Phase 2** ran end-to-end against `https://coffeeandai.xyz` once: 3 drafts created, 208.4s wall (3 parallel SSE streams), passed all assertions, cleaned up. Estimated cost: ≈ $0.03 (gpt-4o-mini, ~30K input + ~10K output tokens per draft × 3 drafts; pricing $0.15/M in, $0.60/M out).
+  - **Phase 4** ran post-fix against the prod deploy of PR #63: returned 5 ordered courses, 4.7s wall. Estimated cost: ≈ $0.001 (one short structured-output call).
 - **Acceptance**:
   - Vitest: 241/241 (was 240; +1 regression test).
   - Lint: 105 errors / 11 warnings — baseline preserved.
@@ -205,3 +205,40 @@ Final state on `https://coffeeandai.xyz`:
 - **Notes**:
   - The Phase-4 path-proposal bug had likely been latent since the Phase-4 PR shipped — the UI's "Generate from topic + audience" panel on `/studio/paths/new` would have always 500'd on real use. The fix lets this path actually work in production.
   - Smoke spec is opt-in (`SMOKE_LLM=1`) and never runs in CI — it costs cents per run and the project carries no per-PR LLM-cost budget.
+
+---
+
+## Follow-up: db/schema.sql consolidation
+
+- **Branch**: `followup-schema-consolidation`
+- **PR**: TBD
+- **Implementation**: moved trailing `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` patches into the canonical `CREATE TABLE` blocks at the top of `db/schema.sql`:
+  - `content.courses.published_version_id UUID` — was a trailing `ALTER`, now in CREATE.
+  - `learner.users.{total_xp, current_streak, longest_streak, last_activity_date, badges}` (Phase-3 gamification) — was a trailing `ALTER`, now in CREATE with a one-line comment explaining the column group.
+  - Removed the redundant `ALTER TABLE content.courses ADD level/topic_key` and the matching `course_drafts` ALTER (both columns are already in the canonical CREATE blocks since the Phase-1 PR).
+  - Removed the one-shot `UPDATE learner.users SET role = 'author' WHERE role = 'developer'` data-migration. The Phase-1 rename completed long ago; the prod DB has no `developer` rows.
+  - File is now a pure CREATE-only schema (CREATE SCHEMA / CREATE TABLE / CREATE INDEX), all idempotent (`IF NOT EXISTS` everywhere). 355 → 341 lines.
+- **Acceptance**:
+  - Re-applied `db/schema.sql` against the dev branch DB via `neon` (one-shot script): 22 statements applied, 0 errors. Sanity SELECT confirms `content.courses` has `level / topic_key / published_version_id` and `learner.users` has all five gamification columns.
+  - Vitest: 241/241 pass (no regressions; schema-alignment tests still green).
+  - Lint: 105 errors / 11 warnings — baseline preserved.
+  - `npx tsc --noEmit`: 4 pre-existing errors; none introduced.
+  - Playwright local against prod (authed): 24/24 pass.
+
+---
+
+## All four follow-ups complete
+
+| Task | PR | Branch | Status |
+|------|----|--------|--------|
+| 1. Authed Playwright + per-role storageState | [#61](https://github.com/ajithpunnakula/coffeeandai/pull/61) | `phase-1-followup-authed-e2e` | merged ✅ |
+| 2. Auto-integrate practice trigger into CardPlayer | [#62](https://github.com/ajithpunnakula/coffeeandai/pull/62) | `phase-5-followup-cardplayer-trigger` | merged ✅ |
+| 3. Live LLM smoke runs + path-proposal schema fix | [#63](https://github.com/ajithpunnakula/coffeeandai/pull/63) | `followup-live-llm-smoke` | merged ✅ |
+| 4. db/schema.sql consolidation | TBD | `followup-schema-consolidation` | in PR |
+
+Final state on `https://coffeeandai.xyz`:
+- `npx vitest run` — 241/241.
+- `PLAYWRIGHT_BASE_URL=https://coffeeandai.xyz npx playwright test` (with authed env) — 24/24.
+- `SMOKE_LLM=1 ... npx playwright test e2e/smoke-llm-prod.spec.ts` — 2/2 passed (Phase 2: 3 drafts in 208s ≈ $0.03; Phase 4: 5 courses in 4.7s ≈ $0.001).
+- Lint: 105 errors / 11 warnings (pre-existing baseline; no follow-up file contributes).
+- `npx tsc --noEmit` — 4 pre-existing errors in `__tests__/components/ScenarioCard.test.tsx` (`da2a2a5`, untouched).
