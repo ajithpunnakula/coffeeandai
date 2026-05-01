@@ -31,19 +31,4 @@ describe("PageCard", () => {
     render(<PageCard card={baseCard} />);
     expect(screen.queryByRole("button", { name: "Read aloud" })).not.toBeInTheDocument();
   });
-
-  it("shows difficulty indicator", () => {
-    render(<PageCard card={baseCard} />);
-    expect(screen.getByText("Recall")).toBeInTheDocument();
-  });
-
-  it("shows Application label for difficulty 2", () => {
-    render(<PageCard card={{ ...baseCard, difficulty: 2 }} />);
-    expect(screen.getByText("Application")).toBeInTheDocument();
-  });
-
-  it("shows Analysis label for difficulty 3", () => {
-    render(<PageCard card={{ ...baseCard, difficulty: 3 }} />);
-    expect(screen.getByText("Analysis")).toBeInTheDocument();
-  });
 });

@@ -55,13 +55,13 @@ describe("QuizCard", () => {
     expect(screen.getByText("Next Question")).toBeInTheDocument();
   });
 
-  it("highlights correct answer green and wrong answer red", () => {
+  it("highlights correct answer emerald and wrong answer red", () => {
     render(<QuizCard card={baseCard} onComplete={vi.fn()} />);
     fireEvent.click(screen.getByText("An iteration counter"));
 
     const correctBtn = screen.getByText("The stop_reason field in the API response");
     const wrongBtn = screen.getByText("An iteration counter");
-    expect(correctBtn.closest("button")!.className).toContain("border-green-500");
+    expect(correctBtn.closest("button")!.className).toContain("border-emerald-500");
     expect(wrongBtn.closest("button")!.className).toContain("border-red-500");
   });
 
@@ -95,7 +95,7 @@ describe("QuizCard", () => {
     expect(screen.getByText("Passed!")).toBeInTheDocument();
   });
 
-  it("does not call onComplete when score is below threshold", () => {
+  it("calls onComplete with failing score and shows fail message", () => {
     const onComplete = vi.fn();
     render(<QuizCard card={baseCard} onComplete={onComplete} />);
 
@@ -107,7 +107,7 @@ describe("QuizCard", () => {
     fireEvent.click(screen.getByText("An error occurred"));
     fireEvent.click(screen.getByText("See Results"));
 
-    expect(onComplete).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledWith(0);
     expect(screen.getByText(/Need 50% to pass/)).toBeInTheDocument();
   });
 
