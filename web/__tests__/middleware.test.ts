@@ -74,12 +74,12 @@ describe("route classification", () => {
   });
 
   it("marks /developer as protected", () => {
-    expect(isPublicRoute("/developer")).toBe(false);
+    expect(isPublicRoute("/studio")).toBe(false);
   });
 
-  it("marks /api/developer routes as protected", () => {
-    expect(isPublicRoute("/api/developer/courses")).toBe(false);
-    expect(isPublicRoute("/api/developer/cards")).toBe(false);
+  it("marks /api/studio routes as protected", () => {
+    expect(isPublicRoute("/api/studio/courses")).toBe(false);
+    expect(isPublicRoute("/api/studio/cards")).toBe(false);
   });
 });
 

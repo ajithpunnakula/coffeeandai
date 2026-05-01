@@ -1,4 +1,4 @@
-import type { EditProposalFields } from "@/components/developer/ProposalPreview";
+import type { EditProposalFields } from "@/components/studio/ProposalPreview";
 
 function sanitizeQuizMetadata(metadata: any): any {
   if (!metadata || typeof metadata !== "object") return metadata;

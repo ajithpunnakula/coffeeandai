@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
   getDb: vi.fn(),
 }));
 vi.mock("@/lib/auth-guards", () => ({
-  requireDeveloper: vi.fn(),
+  requireAuthor: vi.fn(),
   AuthError: class AuthError extends Error {
     status: number;
     constructor(message: string, status: number) {

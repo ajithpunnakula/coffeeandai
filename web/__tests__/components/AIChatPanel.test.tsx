@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import AIChatPanel from "@/components/developer/AIChatPanel";
+import AIChatPanel from "@/components/studio/AIChatPanel";
 
 // Mock react-markdown
 vi.mock("react-markdown", () => ({

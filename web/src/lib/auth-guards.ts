@@ -1,14 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
 import { getDb } from "./db";
 
-export interface DeveloperUser {
+export interface AuthorUser {
   id: string;
   clerk_id: string;
   role: string;
   display_name: string | null;
 }
 
-export async function requireDeveloper(): Promise<DeveloperUser> {
+export async function requireAuthor(): Promise<AuthorUser> {
   const { userId: clerkId } = await auth();
   if (!clerkId) {
     throw new AuthError("Unauthorized", 401);
@@ -23,11 +23,11 @@ export async function requireDeveloper(): Promise<DeveloperUser> {
   `;
 
   const user = rows[0];
-  if (!user || !["admin", "developer"].includes(user.role)) {
-    throw new AuthError("Developer access required", 403);
+  if (!user || !["admin", "author"].includes(user.role)) {
+    throw new AuthError("Author access required", 403);
   }
 
-  return user as DeveloperUser;
+  return user as AuthorUser;
 }
 
 export class AuthError extends Error {

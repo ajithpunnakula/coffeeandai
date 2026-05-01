@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
 
 import { auth } from "@clerk/nextjs/server";
 import { getDb } from "@/lib/db";
-import { requireDeveloper, AuthError } from "@/lib/auth-guards";
+import { requireAuthor, AuthError } from "@/lib/auth-guards";
 
 const mockAuth = vi.mocked(auth);
 const mockGetDb = vi.mocked(getDb);
@@ -25,7 +25,7 @@ function mockSql(rows: any[]) {
   return sql;
 }
 
-describe("requireDeveloper", () => {
+describe("requireAuthor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -33,32 +33,40 @@ describe("requireDeveloper", () => {
   it("throws 401 when not authenticated", async () => {
     mockAuth.mockResolvedValue({ userId: null } as any);
 
-    await expect(requireDeveloper()).rejects.toThrow(AuthError);
-    await expect(requireDeveloper()).rejects.toMatchObject({ status: 401 });
+    await expect(requireAuthor()).rejects.toThrow(AuthError);
+    await expect(requireAuthor()).rejects.toMatchObject({ status: 401 });
   });
 
   it("throws 403 when user not found in DB", async () => {
     mockAuth.mockResolvedValue({ userId: "clerk_123" } as any);
     mockSql([]);
 
-    await expect(requireDeveloper()).rejects.toThrow(AuthError);
-    await expect(requireDeveloper()).rejects.toMatchObject({ status: 403 });
+    await expect(requireAuthor()).rejects.toThrow(AuthError);
+    await expect(requireAuthor()).rejects.toMatchObject({ status: 403 });
   });
 
   it("throws 403 for learner role", async () => {
     mockAuth.mockResolvedValue({ userId: "clerk_123" } as any);
     mockSql([{ id: "uuid-1", clerk_id: "clerk_123", role: "learner", display_name: "Test" }]);
 
-    await expect(requireDeveloper()).rejects.toThrow(AuthError);
-    await expect(requireDeveloper()).rejects.toMatchObject({ status: 403 });
+    await expect(requireAuthor()).rejects.toThrow(AuthError);
+    await expect(requireAuthor()).rejects.toMatchObject({ status: 403 });
   });
 
-  it("returns user for developer role", async () => {
+  it("throws 403 for legacy 'developer' role (rename to author)", async () => {
     mockAuth.mockResolvedValue({ userId: "clerk_123" } as any);
     mockSql([{ id: "uuid-1", clerk_id: "clerk_123", role: "developer", display_name: "Dev" }]);
 
-    const user = await requireDeveloper();
-    expect(user.role).toBe("developer");
+    await expect(requireAuthor()).rejects.toThrow(AuthError);
+    await expect(requireAuthor()).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("returns user for author role", async () => {
+    mockAuth.mockResolvedValue({ userId: "clerk_123" } as any);
+    mockSql([{ id: "uuid-1", clerk_id: "clerk_123", role: "author", display_name: "Author" }]);
+
+    const user = await requireAuthor();
+    expect(user.role).toBe("author");
     expect(user.id).toBe("uuid-1");
   });
 
@@ -66,7 +74,7 @@ describe("requireDeveloper", () => {
     mockAuth.mockResolvedValue({ userId: "clerk_123" } as any);
     mockSql([{ id: "uuid-1", clerk_id: "clerk_123", role: "admin", display_name: "Admin" }]);
 
-    const user = await requireDeveloper();
+    const user = await requireAuthor();
     expect(user.role).toBe("admin");
   });
 });
