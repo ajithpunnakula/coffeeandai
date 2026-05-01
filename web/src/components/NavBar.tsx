@@ -45,7 +45,7 @@ export default async function NavBar() {
   return (
     <nav className="border-b border-gray-800/50 bg-gray-950/80 backdrop-blur-sm px-4 py-3 sticky top-0 z-40">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <Link href="/courses" className="flex items-center gap-2 group">
+        <Link href="/browse" className="flex items-center gap-2 group">
           <span className="text-2xl" role="img" aria-label="coffee">
             ☕
           </span>
@@ -81,12 +81,12 @@ export default async function NavBar() {
               </Link>
             </>
           )}
-          {stats && (stats.role === "admin" || stats.role === "developer") && (
+          {stats && (stats.role === "admin" || stats.role === "author") && (
             <Link
-              href="/developer"
+              href="/studio"
               className="text-sm font-medium text-gray-400 hover:text-amber-400 transition-colors"
             >
-              Developer
+              Studio
             </Link>
           )}
           {userId ? <UserButton /> : <SignInNavButton />}

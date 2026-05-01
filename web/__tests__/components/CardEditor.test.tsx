@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import CardEditor from "@/components/developer/CardEditor";
+import CardEditor from "@/components/studio/CardEditor";
 
 // Mock react-markdown since it uses ESM
 vi.mock("react-markdown", () => ({

@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS content.courses (
   wiki_refs TEXT[],
   card_order TEXT[],
   tags TEXT[],
+  level TEXT,
+  topic_key TEXT,
   source_hash TEXT,
   git_commit TEXT,
   published_at TIMESTAMPTZ DEFAULT now()
@@ -171,6 +173,8 @@ CREATE TABLE IF NOT EXISTS content.course_drafts (
   wiki_refs TEXT[],
   card_order TEXT[],
   tags TEXT[],
+  level TEXT,
+  topic_key TEXT,
   created_by UUID REFERENCES learner.users(id),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -282,4 +286,70 @@ CREATE TABLE IF NOT EXISTS learner.activity_days (
   activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
   cards_completed INT DEFAULT 1,
   PRIMARY KEY (user_id, activity_date)
+);
+
+-- Phase 1: level + topic_key on courses + course_drafts (idempotent for existing DBs)
+ALTER TABLE content.courses
+  ADD COLUMN IF NOT EXISTS level TEXT,
+  ADD COLUMN IF NOT EXISTS topic_key TEXT;
+
+ALTER TABLE content.course_drafts
+  ADD COLUMN IF NOT EXISTS level TEXT,
+  ADD COLUMN IF NOT EXISTS topic_key TEXT;
+
+-- Migrate any 'developer' role rows to 'author' (POC rename)
+UPDATE learner.users SET role = 'author' WHERE role = 'developer';
+
+-- Learning paths (Phase 1 plumbing — wired up in Phase 3)
+
+CREATE TABLE IF NOT EXISTS content.learning_paths (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT,
+  audience TEXT,
+  level TEXT,
+  tags JSONB,
+  status TEXT DEFAULT 'draft',
+  estimated_minutes INT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  published_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS content.learning_path_courses (
+  path_id UUID NOT NULL REFERENCES content.learning_paths(id) ON DELETE CASCADE,
+  course_id TEXT NOT NULL REFERENCES content.courses(id),
+  position INT NOT NULL,
+  required BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (path_id, course_id)
+);
+
+CREATE TABLE IF NOT EXISTS content.learning_path_drafts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT,
+  audience TEXT,
+  level TEXT,
+  tags JSONB,
+  estimated_minutes INT,
+  created_by UUID REFERENCES learner.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS content.learning_path_courses_draft (
+  path_id UUID NOT NULL REFERENCES content.learning_path_drafts(id) ON DELETE CASCADE,
+  course_slug TEXT NOT NULL,
+  position INT NOT NULL,
+  required BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (path_id, course_slug)
+);
+
+CREATE TABLE IF NOT EXISTS learner.path_enrollments (
+  user_id UUID NOT NULL REFERENCES learner.users(id),
+  path_id UUID NOT NULL REFERENCES content.learning_paths(id),
+  started_at TIMESTAMPTZ DEFAULT now(),
+  completed_at TIMESTAMPTZ,
+  PRIMARY KEY (user_id, path_id)
 );

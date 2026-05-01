@@ -10,7 +10,7 @@ export default function LeaderboardPage() {
           <p className="text-gray-500 mt-1">See who&apos;s leading the pack</p>
         </div>
         <Link
-          href="/courses"
+          href="/browse"
           className="text-sm text-gray-400 hover:text-amber-400 transition-colors"
         >
           Back to Courses

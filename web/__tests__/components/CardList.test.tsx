@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import CardList from "@/components/developer/CardList";
+import CardList from "@/components/studio/CardList";
 
 const cards = [
   { id: "card_1", title: "Intro", card_type: "page", ord: 0 },

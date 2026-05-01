@@ -158,7 +158,7 @@ export default async function ResultsPage({
       </section>
 
       <Link
-        href="/courses"
+        href="/browse"
         className="inline-block bg-gradient-to-r from-amber-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-amber-400 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/10"
       >
         Back to Courses
