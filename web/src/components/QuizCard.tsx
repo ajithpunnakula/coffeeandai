@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ExtraPracticeButton from "./ExtraPracticeButton";
 
 interface Choice {
   text: string;
@@ -141,6 +142,10 @@ export default function QuizCard({ card, onComplete }: QuizCardProps) {
           {currentQ + 1 < questions.length ? "Next Question" : "See Results"}
         </button>
       )}
+
+      <div className="pt-2 border-t border-gray-800/60">
+        <ExtraPracticeButton domain={card.domain} cardTitle={card.title} />
+      </div>
     </div>
   );
 }
